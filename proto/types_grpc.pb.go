@@ -4,7 +4,7 @@
 // - protoc             v3.21.12
 // source: proto/types.proto
 
-package microblocknet
+package proto
 
 import (
 	context "context"
