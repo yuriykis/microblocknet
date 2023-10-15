@@ -83,6 +83,7 @@ func (n *Node) Version() *proto.Version {
 	return &proto.Version{
 		Version:       "0.0.1",
 		ListenAddress: n.ListenAddress,
+		Peers:         n.Peers(),
 	}
 }
 
@@ -131,6 +132,9 @@ func (n *Node) bootstrapNetwork(addrs []string) error {
 func (n *Node) canConnectWith(addr string) bool {
 	n.peersLock.RLock()
 	defer n.peersLock.RUnlock()
+	if addr == n.ListenAddress {
+		return false
+	}
 	for _, peer := range n.Peers() {
 		if peer == addr {
 			return false
@@ -142,13 +146,11 @@ func (n *Node) canConnectWith(addr string) bool {
 func (n *Node) Peers() []string {
 	n.peersLock.RLock()
 	defer n.peersLock.RUnlock()
-	peers := make([]string, len(n.peers))
-	i := 0
-	for _, peer := range n.peers {
-		peers[i] = peer.ListenAddress
-		i++
+	peersList := make([]string, 0)
+	for _, v := range n.peers {
+		peersList = append(peersList, v.ListenAddress)
 	}
-	return peers
+	return peersList
 }
 
 func makeNodeClient(address string) (proto.NodeClient, error) {

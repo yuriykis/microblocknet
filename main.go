@@ -1,19 +1,26 @@
 package main
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/yuriykis/microblocknet/node"
 )
 
 func main() {
-	makeNode(":3000", []string{})
+	n1 := makeNode(":3000", []string{})
 	time.Sleep(1 * time.Second)
-	makeNode(":3001", []string{":3000"})
+	n2 := makeNode(":3001", []string{":3000"})
 	time.Sleep(1 * time.Second)
-	makeNode(":3002", []string{":3001"})
-	// time.Sleep(1 * time.Second)
-	// makeNode(":3003", []string{":3000", ":3001", ":3002"})
+	n3 := makeNode(":3002", []string{":3000"})
+	time.Sleep(1 * time.Second)
+	n4 := makeNode(":3003", []string{":3000"})
+	time.Sleep(1 * time.Second)
+
+	fmt.Println(n1.Peers())
+	fmt.Println(n2.Peers())
+	fmt.Println(n3.Peers())
+	fmt.Println(n4.Peers())
 
 	select {}
 }
