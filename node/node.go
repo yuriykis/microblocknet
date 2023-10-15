@@ -14,19 +14,44 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+type peersMap struct {
+	peers map[proto.NodeClient]*proto.Version
+	lock  sync.RWMutex
+}
+
+func NewPeersMap() *peersMap {
+	return &peersMap{
+		peers: make(map[proto.NodeClient]*proto.Version),
+	}
+}
+func (pm *peersMap) addPeer(c proto.NodeClient, v *proto.Version) {
+	pm.lock.Lock()
+	defer pm.lock.Unlock()
+	pm.peers[c] = v
+}
+
+func (pm *peersMap) List() []string {
+	pm.lock.Lock()
+	defer pm.lock.Unlock()
+	peersList := make([]string, 0)
+	for _, v := range pm.peers {
+		peersList = append(peersList, v.ListenAddress)
+	}
+	return peersList
+}
+
 type Node struct {
 	ListenAddress string
 
-	logger    *zap.SugaredLogger
-	peersLock sync.RWMutex
-	peers     map[proto.NodeClient]*proto.Version
+	logger *zap.SugaredLogger
+	peers  *peersMap
 	proto.UnimplementedNodeServer
 }
 
 func NewNode(listenAddress string) *Node {
 	return &Node{
 		ListenAddress: listenAddress,
-		peers:         make(map[proto.NodeClient]*proto.Version),
+		peers:         NewPeersMap(),
 		logger:        makeLogger(),
 	}
 }
@@ -88,9 +113,10 @@ func (n *Node) Version() *proto.Version {
 }
 
 func (n *Node) addPeer(c proto.NodeClient, v *proto.Version) {
-	n.peersLock.Lock()
-	defer n.peersLock.Unlock()
-	n.peers[c] = v
+	if !n.canConnectWith(v.ListenAddress) {
+		return
+	}
+	n.peers.addPeer(c, v)
 
 	if len(v.Peers) > 0 {
 		go func() {
@@ -130,8 +156,6 @@ func (n *Node) bootstrapNetwork(addrs []string) error {
 }
 
 func (n *Node) canConnectWith(addr string) bool {
-	n.peersLock.RLock()
-	defer n.peersLock.RUnlock()
 	if addr == n.ListenAddress {
 		return false
 	}
@@ -144,13 +168,7 @@ func (n *Node) canConnectWith(addr string) bool {
 }
 
 func (n *Node) Peers() []string {
-	n.peersLock.RLock()
-	defer n.peersLock.RUnlock()
-	peersList := make([]string, 0)
-	for _, v := range n.peers {
-		peersList = append(peersList, v.ListenAddress)
-	}
-	return peersList
+	return n.peers.List()
 }
 
 func makeNodeClient(address string) (proto.NodeClient, error) {
