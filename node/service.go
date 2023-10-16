@@ -2,8 +2,8 @@ package node
 
 import (
 	"context"
+	"fmt"
 	"log"
-	"sync"
 	"time"
 
 	"github.com/yuriykis/microblocknet/node/client"
@@ -12,43 +12,20 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+const connectInterval = 100 * time.Millisecond
+
 type Node interface {
 	Handshake(ctx context.Context, v *proto.Version) (*proto.Version, error)
 	NewTransaction(ctx context.Context, t *proto.Transaction) (*proto.Transaction, error)
 	NewBlock(ctx context.Context, b *proto.Block) (*proto.Block, error)
 }
 
-type peersMap struct {
-	peers map[client.Client]*proto.Version
-	lock  sync.RWMutex
-}
-
-func NewPeersMap() *peersMap {
-	return &peersMap{
-		peers: make(map[client.Client]*proto.Version),
-	}
-}
-func (pm *peersMap) addPeer(c client.Client, v *proto.Version) {
-	pm.lock.Lock()
-	defer pm.lock.Unlock()
-	pm.peers[c] = v
-}
-
-func (pm *peersMap) List() []string {
-	pm.lock.Lock()
-	defer pm.lock.Unlock()
-	peersList := make([]string, 0)
-	for _, v := range pm.peers {
-		peersList = append(peersList, v.ListenAddress)
-	}
-	return peersList
-}
-
 type NetNode struct {
 	ListenAddress string
 
-	logger *zap.SugaredLogger
-	peers  *peersMap
+	logger     *zap.SugaredLogger
+	peers      *peersMap
+	knownAddrs *knownAddrs
 }
 
 func New(listenAddress string) *NetNode {
@@ -56,6 +33,19 @@ func New(listenAddress string) *NetNode {
 		ListenAddress: listenAddress,
 		peers:         NewPeersMap(),
 		logger:        makeLogger(),
+		knownAddrs:    newKnownAddrs(),
+	}
+}
+
+func (n *NetNode) Start(listenAddr string, bootstrapNodes []string) {
+	go n.TryConnect()
+
+	if len(bootstrapNodes) > 0 {
+		go func() {
+			if err := n.BootstrapNetwork(bootstrapNodes); err != nil {
+				log.Fatalf("NetNode: %s, failed to bootstrap network: %v", n, err)
+			}
+		}()
 	}
 }
 
@@ -63,7 +53,10 @@ func (n *NetNode) String() string {
 	return n.ListenAddress
 }
 
-func (n *NetNode) Handshake(ctx context.Context, v *proto.Version) (*proto.Version, error) {
+func (n *NetNode) Handshake(
+	ctx context.Context,
+	v *proto.Version,
+) (*proto.Version, error) {
 	c, err := client.NewGRPCClient(v.ListenAddress)
 	if err != nil {
 		return nil, err
@@ -122,18 +115,38 @@ func (n *NetNode) dialRemote(address string) (client.Client, *proto.Version, err
 }
 
 func (n *NetNode) BootstrapNetwork(addrs []string) error {
-	time.Sleep(2 * time.Second) // TODO: handle endpoint not ready
 	for _, addr := range addrs {
 		if !n.canConnectWith(addr) {
 			continue
 		}
-		client, version, err := n.dialRemote(addr)
-		if err != nil {
-			return err
-		}
-		n.addPeer(client, version)
+		n.knownAddrs.append(addr)
 	}
 	return nil
+}
+
+func (n *NetNode) TryConnect() {
+	for {
+		updatedKnownAddrs := make([]string, 0)
+		for _, addr := range n.knownAddrs.list() {
+			if !n.canConnectWith(addr) {
+				continue
+			}
+			client, version, err := n.dialRemote(addr)
+			if err != nil {
+				fmt.Printf(
+					"NetNode: %s, failed to connect to %s, will retry later: %v\n",
+					n,
+					addr,
+					err,
+				)
+				updatedKnownAddrs = append(updatedKnownAddrs, addr)
+				continue
+			}
+			n.addPeer(client, version)
+		}
+		n.knownAddrs.update(updatedKnownAddrs)
+		time.Sleep(connectInterval)
+	}
 }
 
 func (n *NetNode) canConnectWith(addr string) bool {

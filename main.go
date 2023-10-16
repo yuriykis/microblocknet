@@ -16,6 +16,12 @@ import (
 const defaultListenAddr = ":3000"
 
 func main() {
+
+	if os.Getenv("DEBUG") != "" {
+		debug()
+		return
+	}
+
 	var (
 		listenAddr        = os.Getenv("LISTEN_ADDR")
 		bootstrapNodesVar = os.Getenv("BOOTSTRAP_NODES")
@@ -30,13 +36,7 @@ func main() {
 	}
 
 	n := node.New(listenAddr)
-	if len(bootstrapNodes) > 0 {
-		go func() {
-			if err := n.BootstrapNetwork(bootstrapNodes); err != nil {
-				log.Fatalf("NetNode: %s, failed to bootstrap network: %v", n, err)
-			}
-		}()
-	}
+	n.Start(listenAddr, bootstrapNodes)
 	log.Fatal(makeGRPCTransport(n.ListenAddress, n))
 }
 
@@ -64,11 +64,13 @@ func debug() {
 	var (
 		n1ch = make(chan *node.NetNode)
 		n2ch = make(chan *node.NetNode)
+		n3ch = make(chan *node.NetNode)
+		n4ch = make(chan *node.NetNode)
 	)
 	go start(":3000", []string{}, n1ch)
-
-	time.Sleep(1 * time.Second)
 	go start(":3001", []string{":3000"}, n2ch)
+	go start(":3002", []string{":3000"}, n3ch)
+	go start(":3003", []string{":3001"}, n4ch)
 
 	for {
 		select {
@@ -76,6 +78,10 @@ func debug() {
 			fmt.Printf("Node %s, peers: %v\n", n1, n1.Peers())
 		case n2 := <-n2ch:
 			fmt.Printf("Node %s, peers: %v\n", n2, n2.Peers())
+		case n3 := <-n3ch:
+			fmt.Printf("Node %s, peers: %v\n", n3, n3.Peers())
+		case n4 := <-n4ch:
+			fmt.Printf("Node %s, peers: %v\n", n4, n4.Peers())
 		default:
 			time.Sleep(1 * time.Second)
 		}
@@ -86,49 +92,11 @@ func start(listenAddr string, bootstrapNodes []string, nodech chan *node.NetNode
 	if listenAddr == "" {
 		listenAddr = defaultListenAddr
 	}
-
 	n := node.New(listenAddr)
-	if len(bootstrapNodes) > 0 {
-		go func() {
-			if err := n.BootstrapNetwork(bootstrapNodes); err != nil {
-				log.Fatalf("NetNode: %s, failed to bootstrap network: %v", n, err)
-			}
-		}()
-	}
+	n.Start(listenAddr, bootstrapNodes)
 	go func() {
-		time.Sleep(5 * time.Second)
+		time.Sleep(15 * time.Second)
 		nodech <- n
 	}()
 	return makeGRPCTransport(n.ListenAddress, n)
 }
-
-// func main() {
-// 	n1 := makeNode(":3000", []string{})
-// 	time.Sleep(1 * time.Second)
-// 	n2 := makeNode(":3001", []string{":3000"})
-// 	time.Sleep(1 * time.Second)
-// 	n3 := makeNode(":3002", []string{":3000"})
-// 	time.Sleep(1 * time.Second)
-// 	n4 := makeNode(":3003", []string{":3001"})
-// 	time.Sleep(1 * time.Second)
-// 	n5 := makeNode(":3004", []string{":3002"})
-// 	time.Sleep(5 * time.Second)
-
-// 	fmt.Println(n1.Peers())
-// 	fmt.Println(n2.Peers())
-// 	fmt.Println(n3.Peers())
-// 	fmt.Println(n4.Peers())
-// 	fmt.Println(n5.Peers())
-
-// 	select {}
-// }
-
-// func makeNode(listenAddr string, bootstrapNodes []string) *node.NetNode {
-// 	n := node.NewNode(listenAddr)
-// 	go func() {
-// 		if err := n.Start(bootstrapNodes); err != nil {
-// 			panic(err)
-// 		}
-// 	}()
-// 	return n
-// }
