@@ -12,7 +12,7 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-const connectInterval = 100 * time.Millisecond
+const connectInterval = 1 * time.Second
 
 type Node interface {
 	Handshake(ctx context.Context, v *proto.Version) (*proto.Version, error)
@@ -37,7 +37,7 @@ func New(listenAddress string) *NetNode {
 	}
 }
 
-func (n *NetNode) Start(listenAddr string, bootstrapNodes []string) {
+func (n *NetNode) Start(listenAddr string, bootstrapNodes []string) error {
 	go n.TryConnect()
 
 	if len(bootstrapNodes) > 0 {
@@ -47,6 +47,7 @@ func (n *NetNode) Start(listenAddr string, bootstrapNodes []string) {
 			}
 		}()
 	}
+	return makeGRPCTransport(listenAddr, n)
 }
 
 func (n *NetNode) String() string {

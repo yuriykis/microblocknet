@@ -3,14 +3,11 @@ package main
 import (
 	"fmt"
 	"log"
-	"net"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/yuriykis/microblocknet/node"
-	"github.com/yuriykis/microblocknet/proto"
-	"google.golang.org/grpc"
 )
 
 const defaultListenAddr = ":3000"
@@ -36,27 +33,7 @@ func main() {
 	}
 
 	n := node.New(listenAddr)
-	n.Start(listenAddr, bootstrapNodes)
-	log.Fatal(makeGRPCTransport(n.ListenAddress, n))
-}
-
-func makeGRPCTransport(listenAddr string, svc node.Node) error {
-	fmt.Printf("Node %s, starting GRPC transport\n", listenAddr)
-	var (
-		opt        = []grpc.ServerOption{}
-		grpcServer = grpc.NewServer(opt...)
-	)
-
-	ln, err := net.Listen("tcp", listenAddr)
-	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
-	}
-	defer ln.Close()
-
-	grpcNodeServer := node.NewGRPCNodeServer(svc)
-	proto.RegisterNodeServer(grpcServer, grpcNodeServer)
-
-	return grpcServer.Serve(ln)
+	log.Fatal(n.Start(listenAddr, bootstrapNodes))
 }
 
 // for debugging
@@ -93,10 +70,9 @@ func start(listenAddr string, bootstrapNodes []string, nodech chan *node.NetNode
 		listenAddr = defaultListenAddr
 	}
 	n := node.New(listenAddr)
-	n.Start(listenAddr, bootstrapNodes)
 	go func() {
 		time.Sleep(15 * time.Second)
 		nodech <- n
 	}()
-	return makeGRPCTransport(n.ListenAddress, n)
+	return n.Start(listenAddr, bootstrapNodes)
 }
