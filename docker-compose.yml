@@ -1,0 +1,35 @@
+version: "3"
+
+services:
+  node1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - LISTEN_ADDR=node1:3000
+  
+  node2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - LISTEN_ADDR=node2:3001
+      - BOOTSTRAP_NODES=node1:3000
+    depends_on:
+      - node1
+
+  node3:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3002:3002"
+    environment:
+      - LISTEN_ADDR=node3:3002
+      - BOOTSTRAP_NODES=node2:3001
+    depends_on:
+      - node2
