@@ -49,7 +49,6 @@ type NetNode struct {
 
 	logger *zap.SugaredLogger
 	peers  *peersMap
-	proto.UnimplementedNodeServer
 }
 
 func New(listenAddress string) *NetNode {
