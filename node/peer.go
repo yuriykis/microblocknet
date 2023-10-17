@@ -23,6 +23,12 @@ func (pm *peersMap) addPeer(c client.Client, v *proto.Version) {
 	pm.peers[c] = v
 }
 
+func (pm *peersMap) removePeer(c client.Client) {
+	pm.lock.Lock()
+	defer pm.lock.Unlock()
+	delete(pm.peers, c)
+}
+
 func (pm *peersMap) List() []string {
 	pm.lock.Lock()
 	defer pm.lock.Unlock()

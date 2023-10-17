@@ -12,7 +12,10 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-const connectInterval = 1 * time.Second
+const (
+	connectInterval = 1 * time.Second
+	pingInterval    = 10 * time.Second
+)
 
 type Node interface {
 	Handshake(ctx context.Context, v *proto.Version) (*proto.Version, error)
@@ -39,6 +42,7 @@ func New(listenAddress string) *NetNode {
 
 func (n *NetNode) Start(listenAddr string, bootstrapNodes []string) error {
 	go n.TryConnect()
+	go n.Ping()
 
 	if len(bootstrapNodes) > 0 {
 		go func() {
@@ -125,6 +129,7 @@ func (n *NetNode) BootstrapNetwork(addrs []string) error {
 	return nil
 }
 
+// TryConnect tries to connect to known addresses
 func (n *NetNode) TryConnect() {
 	for {
 		updatedKnownAddrs := make([]string, 0)
@@ -147,6 +152,23 @@ func (n *NetNode) TryConnect() {
 		}
 		n.knownAddrs.update(updatedKnownAddrs)
 		time.Sleep(connectInterval)
+	}
+}
+
+// Ping pings all known peers, if peer is not available,
+// it will be removed from the peers list and added to the known addresses list
+func (n *NetNode) Ping() {
+	for {
+		for _, peer := range n.Peers() {
+			c, _, err := n.dialRemote(peer)
+			if err != nil {
+				fmt.Printf("NetNode: %s, failed to ping %s: %v\n", n, peer, err)
+				n.peers.removePeer(c)
+				n.knownAddrs.append(peer)
+				continue
+			}
+		}
+		time.Sleep(pingInterval)
 	}
 }
 
