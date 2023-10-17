@@ -76,3 +76,8 @@ func start(listenAddr string, bootstrapNodes []string, nodech chan *node.NetNode
 	}()
 	return n.Start(listenAddr, bootstrapNodes)
 }
+
+// TODO:
+func stop() {
+
+}

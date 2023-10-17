@@ -66,31 +66,73 @@ func (pm *peersMap) listForPing() []string {
 	return peersList
 }
 
+type knownAddr struct {
+	addr         string
+	pingAttempts int
+}
+
+func newKnownAddr(addr string) *knownAddr {
+	return &knownAddr{
+		addr:         addr,
+		pingAttempts: 0,
+	}
+}
+
 type knownAddrs struct {
-	addrs []string
+	addrs []*knownAddr
 	lock  sync.RWMutex
 }
 
 func newKnownAddrs() *knownAddrs {
 	return &knownAddrs{
-		addrs: make([]string, 0),
+		addrs: make([]*knownAddr, 0),
+	}
+}
+
+func (ka *knownAddrs) incPingAttempts(addr string) {
+	ka.lock.Lock()
+	defer ka.lock.Unlock()
+	for _, a := range ka.addrs {
+		if a.addr == addr {
+			a.pingAttempts++
+			return
+		}
+	}
+}
+
+func (ka *knownAddrs) resetPingAttempts(addr string) {
+	ka.lock.Lock()
+	defer ka.lock.Unlock()
+	for _, a := range ka.addrs {
+		if a.addr == addr {
+			a.pingAttempts = 0
+			return
+		}
 	}
 }
 
 func (ka *knownAddrs) append(addr string) {
 	ka.lock.Lock()
 	defer ka.lock.Unlock()
-	ka.addrs = append(ka.addrs, addr)
+	ka.addrs = append(ka.addrs, newKnownAddr(addr))
 }
 
 func (ka *knownAddrs) update(addrs []string) {
 	ka.lock.Lock()
 	defer ka.lock.Unlock()
-	ka.addrs = addrs
+	updatedAddrs := make([]*knownAddr, len(addrs))
+	for i, addr := range addrs {
+		updatedAddrs[i] = newKnownAddr(addr)
+	}
+	ka.addrs = updatedAddrs
 }
 
 func (ka *knownAddrs) list() []string {
 	ka.lock.Lock()
 	defer ka.lock.Unlock()
-	return ka.addrs
+	addrs := make([]string, len(ka.addrs))
+	for i, addr := range ka.addrs {
+		addrs[i] = addr.addr
+	}
+	return addrs
 }

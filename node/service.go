@@ -51,7 +51,12 @@ func (n *NetNode) Start(listenAddr string, bootstrapNodes []string) error {
 			}
 		}()
 	}
-	return makeGRPCTransport(listenAddr, n)
+	grpcServer := makeGRPCTransport(listenAddr, n)
+	return grpcServer.serveGRPCTransport()
+}
+
+func (n *NetNode) Stop(grpcServer *GRPCNodeServer) {
+	grpcServer.closeGRPCTransport()
 }
 
 func (n *NetNode) String() string {
@@ -146,6 +151,7 @@ func (n *NetNode) tryConnect() {
 					err,
 				)
 				updatedKnownAddrs = append(updatedKnownAddrs, addr)
+				n.knownAddrs.incPingAttempts(addr)
 				continue
 			}
 			n.addPeer(client, version)
@@ -167,6 +173,7 @@ func (n *NetNode) ping() {
 				n.knownAddrs.append(peer)
 				continue
 			}
+			n.knownAddrs.resetPingAttempts(peer)
 		}
 		time.Sleep(pingInterval)
 	}

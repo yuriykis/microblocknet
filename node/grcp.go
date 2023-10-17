@@ -12,12 +12,16 @@ import (
 
 type GRPCNodeServer struct {
 	proto.UnimplementedNodeServer
-	svc Node
+	svc        Node
+	grpcServer *grpc.Server
+	listenAddr string
 }
 
-func NewGRPCNodeServer(svc Node) *GRPCNodeServer {
+func NewGRPCNodeServer(svc Node, grpcServer *grpc.Server, listenAddr string) *GRPCNodeServer {
 	return &GRPCNodeServer{
-		svc: svc,
+		svc:        svc,
+		grpcServer: grpcServer,
+		listenAddr: listenAddr,
 	}
 }
 
@@ -33,21 +37,28 @@ func (s *GRPCNodeServer) NewBlock(ctx context.Context, b *proto.Block) (*proto.B
 	return s.svc.NewBlock(ctx, b)
 }
 
-func makeGRPCTransport(listenAddr string, svc Node) error {
+func makeGRPCTransport(listenAddr string, svc Node) *GRPCNodeServer {
 	fmt.Printf("Node %s, starting GRPC transport\n", listenAddr)
 	var (
 		opt        = []grpc.ServerOption{}
 		grpcServer = grpc.NewServer(opt...)
 	)
 
-	ln, err := net.Listen("tcp", listenAddr)
+	grpcNodeServer := NewGRPCNodeServer(svc, grpcServer, listenAddr)
+	proto.RegisterNodeServer(grpcServer, grpcNodeServer)
+
+	return grpcNodeServer
+}
+
+func (s *GRPCNodeServer) serveGRPCTransport() error {
+	ln, err := net.Listen("tcp", s.listenAddr)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	defer ln.Close()
+	return s.grpcServer.Serve(ln)
+}
 
-	grpcNodeServer := NewGRPCNodeServer(svc)
-	proto.RegisterNodeServer(grpcServer, grpcNodeServer)
-
-	return grpcServer.Serve(ln)
+func (s *GRPCNodeServer) closeGRPCTransport() {
+	s.grpcServer.GracefulStop()
 }
