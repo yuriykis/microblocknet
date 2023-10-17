@@ -41,8 +41,8 @@ func New(listenAddress string) *NetNode {
 }
 
 func (n *NetNode) Start(listenAddr string, bootstrapNodes []string) error {
-	go n.TryConnect()
-	go n.Ping()
+	go n.tryConnect()
+	go n.ping()
 
 	if len(bootstrapNodes) > 0 {
 		go func() {
@@ -130,7 +130,7 @@ func (n *NetNode) BootstrapNetwork(addrs []string) error {
 }
 
 // TryConnect tries to connect to known addresses
-func (n *NetNode) TryConnect() {
+func (n *NetNode) tryConnect() {
 	for {
 		updatedKnownAddrs := make([]string, 0)
 		for _, addr := range n.knownAddrs.list() {
@@ -157,7 +157,7 @@ func (n *NetNode) TryConnect() {
 
 // Ping pings all known peers, if peer is not available,
 // it will be removed from the peers list and added to the known addresses list
-func (n *NetNode) Ping() {
+func (n *NetNode) ping() {
 	for {
 		for _, peer := range n.Peers() {
 			c, _, err := n.dialRemote(peer)
