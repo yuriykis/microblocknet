@@ -40,7 +40,7 @@ func New(listenAddress string) *NetNode {
 	}
 }
 
-func (n *NetNode) Start(listenAddr string, bootstrapNodes []string) error {
+func (n *NetNode) Start(listenAddr string, bootstrapNodes []string, server Server) error {
 	go n.tryConnect()
 	go n.ping()
 
@@ -51,12 +51,11 @@ func (n *NetNode) Start(listenAddr string, bootstrapNodes []string) error {
 			}
 		}()
 	}
-	grpcServer := makeGRPCTransport(listenAddr, n)
-	return grpcServer.serveGRPCTransport()
+	return server.Serve()
 }
 
-func (n *NetNode) Stop(grpcServer *GRPCNodeServer) {
-	grpcServer.closeGRPCTransport()
+func (n *NetNode) Stop(server Server) {
+	server.Close()
 }
 
 func (n *NetNode) String() string {
@@ -115,13 +114,20 @@ func (n *NetNode) dialRemote(address string) (client.Client, *proto.Version, err
 	if err != nil {
 		return nil, nil, err
 	}
-	version, err := client.Handshake(context.Background(), n.Version())
+	version, err := n.handshakeClient(client)
 	if err != nil {
 		return nil, nil, err
 	}
-	n.logger.Infof("NetNode: %s, dialing %s, version: %v", n, address, version)
-
 	return client, version, nil
+}
+
+func (n *NetNode) handshakeClient(c client.Client) (*proto.Version, error) {
+	version, err := c.Handshake(context.Background(), n.Version())
+	if err != nil {
+		return nil, err
+	}
+	n.logger.Infof("NetNode: %s, handshake with %s, version: %v", n, c, version)
+	return version, nil
 }
 
 func (n *NetNode) BootstrapNetwork(addrs []string) error {
@@ -165,15 +171,16 @@ func (n *NetNode) tryConnect() {
 // it will be removed from the peers list and added to the known addresses list
 func (n *NetNode) ping() {
 	for {
-		for _, peer := range n.peersForPing() {
-			c, _, err := n.dialRemote(peer)
+		for c, p := range n.peers.peersForPing() {
+			v, err := n.handshakeClient(c)
 			if err != nil {
-				fmt.Printf("NetNode: %s, failed to ping %s: %v\n", n, peer, err)
+				fmt.Printf("NetNode: %s, failed to ping %s: %v\n", n, c, err)
+				n.knownAddrs.append(p.ListenAddress)
 				n.peers.removePeer(c)
-				n.knownAddrs.append(peer)
 				continue
 			}
-			n.knownAddrs.resetPingAttempts(peer)
+			n.knownAddrs.resetPingAttempts(v.ListenAddress)
+			n.peers.updateLastPingTime(c)
 		}
 		time.Sleep(pingInterval)
 	}
@@ -193,10 +200,6 @@ func (n *NetNode) canConnectWith(addr string) bool {
 
 func (n *NetNode) Peers() []string {
 	return n.peers.List()
-}
-
-func (n *NetNode) peersForPing() []string {
-	return n.peers.listForPing()
 }
 
 func makeLogger() *zap.SugaredLogger {

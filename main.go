@@ -33,7 +33,8 @@ func main() {
 	}
 
 	n := node.New(listenAddr)
-	log.Fatal(n.Start(listenAddr, bootstrapNodes))
+	grcpServer := node.MakeGRPCTransport(listenAddr, n)
+	log.Fatal(n.Start(listenAddr, bootstrapNodes, grcpServer))
 }
 
 // for debugging
@@ -44,11 +45,17 @@ func debug() {
 		n3ch = make(chan *node.NetNode)
 		n4ch = make(chan *node.NetNode)
 	)
-	go start(":3000", []string{}, n1ch)
-	go start(":3001", []string{":3000"}, n2ch)
-	go start(":3002", []string{":3000"}, n3ch)
-	go start(":3003", []string{":3001"}, n4ch)
+	go start(":3000", []string{}, n1ch, 1200)
+	go start(":3001", []string{":3000"}, n2ch, 1200)
+	go start(":3002", []string{":3000"}, n3ch, 10)
+	go start(":3003", []string{":3001"}, n4ch, 1200)
 
+	go showPeers(n1ch, n2ch, n3ch, n4ch)
+
+	select {}
+}
+
+func showPeers(n1ch chan *node.NetNode, n2ch chan *node.NetNode, n3ch chan *node.NetNode, n4ch chan *node.NetNode) {
 	for {
 		select {
 		case n1 := <-n1ch:
@@ -65,19 +72,29 @@ func debug() {
 	}
 }
 
-func start(listenAddr string, bootstrapNodes []string, nodech chan *node.NetNode) error {
+func start(
+	listenAddr string,
+	bootstrapNodes []string,
+	nodech chan *node.NetNode,
+	stopTime int,
+) error {
 	if listenAddr == "" {
 		listenAddr = defaultListenAddr
 	}
 	n := node.New(listenAddr)
 	go func() {
-		time.Sleep(15 * time.Second)
-		nodech <- n
+		time.Sleep(10 * time.Second)
+		for {
+			nodech <- n
+			time.Sleep(3 * time.Second)
+		}
 	}()
-	return n.Start(listenAddr, bootstrapNodes)
-}
 
-// TODO:
-func stop() {
+	grpcServer := node.MakeGRPCTransport(listenAddr, n)
+	go func(stopTime int, server node.Server) {
+		time.Sleep(time.Duration(stopTime) * time.Second)
+		n.Stop(grpcServer)
+	}(stopTime, grpcServer)
 
+	return n.Start(listenAddr, bootstrapNodes, grpcServer)
 }
