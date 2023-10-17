@@ -114,7 +114,7 @@ func (n *NetNode) dialRemote(address string) (client.Client, *proto.Version, err
 	if err != nil {
 		return nil, nil, err
 	}
-	n.logger.Infof("NetNode: %s, connected to %s", n, address)
+	n.logger.Infof("NetNode: %s, dialing %s, version: %v", n, address, version)
 
 	return client, version, nil
 }
@@ -159,7 +159,7 @@ func (n *NetNode) tryConnect() {
 // it will be removed from the peers list and added to the known addresses list
 func (n *NetNode) ping() {
 	for {
-		for _, peer := range n.Peers() {
+		for _, peer := range n.peersForPing() {
 			c, _, err := n.dialRemote(peer)
 			if err != nil {
 				fmt.Printf("NetNode: %s, failed to ping %s: %v\n", n, peer, err)
@@ -186,6 +186,10 @@ func (n *NetNode) canConnectWith(addr string) bool {
 
 func (n *NetNode) Peers() []string {
 	return n.peers.List()
+}
+
+func (n *NetNode) peersForPing() []string {
+	return n.peers.listForPing()
 }
 
 func makeLogger() *zap.SugaredLogger {
