@@ -27,14 +27,15 @@ message Header {
   int32 height = 2;
   string prev_block_hash = 3;
   string merkle_root = 4;
-  int32 timestamp = 5;
+  int64 timestamp = 5;
   string hash = 6;
 }
 
 message TxInput {
   string tx_id = 1;
   int32 out_index = 2;
-  string signature = 3;
+  string public_key = 3;
+  string signature = 4;
 }
 
 message TxOutput {

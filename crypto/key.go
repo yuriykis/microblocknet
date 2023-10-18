@@ -85,6 +85,14 @@ func PublicKeyFromBytes(key []byte) *PublicKey {
 	}
 }
 
+func PublicKeyFromString(key string) *PublicKey {
+	b, err := hex.DecodeString(key)
+	if err != nil {
+		panic(err)
+	}
+	return PublicKeyFromBytes(b)
+}
+
 func (p *PublicKey) Verify(message []byte, sig *Signature) bool {
 	return ed25519.Verify(p.key, message, sig.value)
 }
@@ -93,6 +101,10 @@ func (p *PublicKey) Address() *Address {
 	return &Address{
 		value: p.key[PublicKeyLength-AddressLength:],
 	}
+}
+
+func (p *PublicKey) Bytes() []byte {
+	return p.key
 }
 
 type Signature struct {
@@ -107,8 +119,20 @@ func SignatureFromBytes(value []byte) *Signature {
 	}
 }
 
+func SignatureFromString(value string) *Signature {
+	b, err := hex.DecodeString(value)
+	if err != nil {
+		panic(err)
+	}
+	return SignatureFromBytes(b)
+}
+
 func (s *Signature) Bytes() []byte {
 	return s.value
+}
+
+func (s *Signature) Verify(message []byte, pubKey *PublicKey) bool {
+	return pubKey.Verify(message, s)
 }
 
 type Address struct {
