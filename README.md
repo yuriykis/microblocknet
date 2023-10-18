@@ -21,6 +21,10 @@
   </p>
 </div>
 
+
+## Important Note
+This project is currently under development. It is not ready for production or even testing. Please check back later for updates.
+
 ## About The Project
 MicroBlockNet is a distributed blockchain application consisting of multiple nodes that interconnect in real-time. It is built to ensure redundancy, as nodes periodically attempt to reconnect to unresponsive nodes. If unsuccessful after several attempts, the unresponsive node will be removed from memory.
 
