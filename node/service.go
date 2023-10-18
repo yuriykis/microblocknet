@@ -13,8 +13,9 @@ import (
 )
 
 const (
-	connectInterval = 1 * time.Second
-	pingInterval    = 5 * time.Second
+	connectInterval    = 1 * time.Second
+	pingInterval       = 5 * time.Second
+	maxConnectAttempts = 20
 )
 
 type Node interface {
@@ -196,7 +197,12 @@ func (n *NetNode) tryConnect(quitCh chan struct{}) {
 						addr,
 						err,
 					)
-					updatedKnownAddrs[addr] = connectAttempts + 1
+					// if the connection attemps is less than maxConnectAttempts, we will try to connect again
+					// otherwise we will remove the address from the known addresses list
+					// by not adding it to the updatedKnownAddrs map
+					if connectAttempts < maxConnectAttempts {
+						updatedKnownAddrs[addr] = connectAttempts + 1
+					}
 					continue
 				}
 				n.addPeer(client, version)
