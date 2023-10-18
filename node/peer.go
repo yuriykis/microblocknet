@@ -45,8 +45,8 @@ func (pm *peersMap) removePeer(c client.Client) {
 }
 
 func (pm *peersMap) List() []string {
-	pm.lock.Lock()
-	defer pm.lock.Unlock()
+	pm.lock.RLock()
+	defer pm.lock.RUnlock()
 	peersList := make([]string, 0)
 	for _, v := range pm.peers {
 		peersList = append(peersList, v.ListenAddress)
@@ -55,8 +55,8 @@ func (pm *peersMap) List() []string {
 }
 
 func (pm *peersMap) peersForPing() map[client.Client]*peer {
-	pm.lock.Lock()
-	defer pm.lock.Unlock()
+	pm.lock.RLock()
+	defer pm.lock.RUnlock()
 	peers := make(map[client.Client]*peer)
 	for c, p := range pm.peers {
 		if time.Since(p.lastPing) > checkConnectInterval {
@@ -73,7 +73,7 @@ func (pm *peersMap) updateLastPingTime(c client.Client) {
 }
 
 type knownAddrs struct {
-	addrs map[string]int // [addr]pingAttempts
+	addrs map[string]int // [addr]connectAttempts
 	lock  sync.RWMutex
 }
 
@@ -83,38 +83,20 @@ func newKnownAddrs() *knownAddrs {
 	}
 }
 
-func (ka *knownAddrs) incPingAttempts(addr string) {
+func (ka *knownAddrs) append(addr string, connectAttempts int) {
 	ka.lock.Lock()
 	defer ka.lock.Unlock()
-	ka.addrs[addr]++
+	ka.addrs[addr] = connectAttempts
 }
 
-func (ka *knownAddrs) resetPingAttempts(addr string) {
+func (ka *knownAddrs) update(addrs map[string]int) {
 	ka.lock.Lock()
 	defer ka.lock.Unlock()
-	ka.addrs[addr] = 0
+	ka.addrs = addrs
 }
 
-func (ka *knownAddrs) append(addr string) {
+func (ka *knownAddrs) list() map[string]int {
 	ka.lock.Lock()
 	defer ka.lock.Unlock()
-	ka.addrs[addr] = 0
-}
-
-func (ka *knownAddrs) update(addrs []string) {
-	ka.lock.Lock()
-	defer ka.lock.Unlock()
-	for _, addr := range addrs {
-		ka.addrs[addr] = 0
-	}
-}
-
-func (ka *knownAddrs) list() []string {
-	ka.lock.Lock()
-	defer ka.lock.Unlock()
-	addrsList := make([]string, 0)
-	for addr := range ka.addrs {
-		addrsList = append(addrsList, addr)
-	}
-	return addrsList
+	return ka.addrs
 }

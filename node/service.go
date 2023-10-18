@@ -14,7 +14,7 @@ import (
 
 const (
 	connectInterval = 1 * time.Second
-	pingInterval    = 10 * time.Second
+	pingInterval    = 5 * time.Second
 )
 
 type Node interface {
@@ -41,8 +41,11 @@ func New(listenAddress string) *NetNode {
 }
 
 func (n *NetNode) Start(listenAddr string, bootstrapNodes []string, server Server) error {
+
+	// TODO: add graceful shutdown for all goroutines
 	go n.tryConnect()
 	go n.ping()
+	go n.showPeers()
 
 	if len(bootstrapNodes) > 0 {
 		go func() {
@@ -52,6 +55,13 @@ func (n *NetNode) Start(listenAddr string, bootstrapNodes []string, server Serve
 		}()
 	}
 	return server.Serve()
+}
+
+func (n *NetNode) showPeers() {
+	for {
+		fmt.Printf("Node %s, peers: %v\n", n, n.Peers())
+		time.Sleep(3 * time.Second)
+	}
 }
 
 func (n *NetNode) Stop(server Server) {
@@ -135,7 +145,7 @@ func (n *NetNode) BootstrapNetwork(addrs []string) error {
 		if !n.canConnectWith(addr) {
 			continue
 		}
-		n.knownAddrs.append(addr)
+		n.knownAddrs.append(addr, 0)
 	}
 	return nil
 }
@@ -143,8 +153,8 @@ func (n *NetNode) BootstrapNetwork(addrs []string) error {
 // TryConnect tries to connect to known addresses
 func (n *NetNode) tryConnect() {
 	for {
-		updatedKnownAddrs := make([]string, 0)
-		for _, addr := range n.knownAddrs.list() {
+		updatedKnownAddrs := make(map[string]int, 0)
+		for addr, connectAttempts := range n.knownAddrs.list() {
 			if !n.canConnectWith(addr) {
 				continue
 			}
@@ -156,8 +166,7 @@ func (n *NetNode) tryConnect() {
 					addr,
 					err,
 				)
-				updatedKnownAddrs = append(updatedKnownAddrs, addr)
-				n.knownAddrs.incPingAttempts(addr)
+				updatedKnownAddrs[addr] = connectAttempts + 1
 				continue
 			}
 			n.addPeer(client, version)
@@ -172,14 +181,13 @@ func (n *NetNode) tryConnect() {
 func (n *NetNode) ping() {
 	for {
 		for c, p := range n.peers.peersForPing() {
-			v, err := n.handshakeClient(c)
+			_, err := n.handshakeClient(c)
 			if err != nil {
 				fmt.Printf("NetNode: %s, failed to ping %s: %v\n", n, c, err)
-				n.knownAddrs.append(p.ListenAddress)
+				n.knownAddrs.append(p.ListenAddress, 0)
 				n.peers.removePeer(c)
 				continue
 			}
-			n.knownAddrs.resetPingAttempts(v.ListenAddress)
 			n.peers.updateLastPingTime(c)
 		}
 		time.Sleep(pingInterval)
