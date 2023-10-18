@@ -76,6 +76,7 @@ func (n *NetNode) Start(listenAddr string, bootstrapNodes []string, server Serve
 }
 
 func (n *NetNode) showPeers(quitCh chan struct{}) {
+	n.logger.Infof("NetNode: %s, starting showPeers\n", n)
 	for {
 		select {
 		case <-quitCh:
@@ -178,6 +179,7 @@ func (n *NetNode) BootstrapNetwork(addrs []string) error {
 
 // TryConnect tries to connect to known addresses
 func (n *NetNode) tryConnect(quitCh chan struct{}) {
+	n.logger.Infof("NetNode: %s, starting tryConnect\n", n)
 	for {
 		select {
 		case <-quitCh:
@@ -220,6 +222,7 @@ func (n *NetNode) tryConnect(quitCh chan struct{}) {
 // Ping pings all known peers, if peer is not available,
 // it will be removed from the peers list and added to the known addresses list
 func (n *NetNode) ping(quitCh chan struct{}) {
+	n.logger.Infof("NetNode: %s, starting ping\n", n)
 	for {
 		select {
 		case <-quitCh:
