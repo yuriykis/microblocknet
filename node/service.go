@@ -68,7 +68,7 @@ func (n *NetNode) Start(listenAddr string, bootstrapNodes []string, server Serve
 	if len(bootstrapNodes) > 0 {
 		go func() {
 			if err := n.BootstrapNetwork(bootstrapNodes); err != nil {
-				log.Fatalf("NetNode: %s, failed to bootstrap network: %v", n, err)
+				n.logger.Errorf("NetNode: %s, failed to bootstrap network: %v", n, err)
 			}
 		}()
 	}
@@ -79,11 +79,11 @@ func (n *NetNode) showPeers(quitCh chan struct{}) {
 	for {
 		select {
 		case <-quitCh:
-			fmt.Printf("NetNode: %s, stopping showPeers\n", n)
+			n.logger.Infof("NetNode: %s, stopping showPeers", n)
 			return
 		default:
-			fmt.Printf("Node %s, peers: %v\n", n, n.Peers())
-			fmt.Printf("Node %s, knownAddrs: %v\n", n, n.knownAddrs.list())
+			n.logger.Infof("Node %s, peers: %v", n, n.Peers())
+			n.logger.Infof("Node %s, knownAddrs: %v", n, n.knownAddrs.list())
 			time.Sleep(3 * time.Second)
 		}
 	}
@@ -107,7 +107,7 @@ func (n *NetNode) Handshake(
 		return nil, err
 	}
 	n.addPeer(c, v)
-	log.Printf("NetNode: %s, sending handshake to %s", n, v.ListenAddress)
+	n.logger.Infof("NetNode: %s, sending handshake to %s", n, v.ListenAddress)
 	return n.Version(), nil
 }
 
@@ -139,7 +139,7 @@ func (n *NetNode) addPeer(c client.Client, v *proto.Version) {
 	if len(v.Peers) > 0 {
 		go func() {
 			if err := n.BootstrapNetwork(v.Peers); err != nil {
-				log.Fatalf("NetNode: %s, failed to bootstrap network: %v", n, err)
+				n.logger.Errorf("NetNode: %s, failed to bootstrap network: %v", n, err)
 			}
 		}()
 	}
@@ -181,7 +181,7 @@ func (n *NetNode) tryConnect(quitCh chan struct{}) {
 	for {
 		select {
 		case <-quitCh:
-			fmt.Printf("NetNode: %s, stopping tryConnect\n", n)
+			n.logger.Infof("NetNode: %s, stopping tryConnect\n", n)
 			return
 		default:
 			updatedKnownAddrs := make(map[string]int, 0)
@@ -191,12 +191,16 @@ func (n *NetNode) tryConnect(quitCh chan struct{}) {
 				}
 				client, version, err := n.dialRemote(addr)
 				if err != nil {
-					fmt.Printf(
+					errMsg := fmt.Sprintf(
 						"NetNode: %s, failed to connect to %s, will retry later: %v\n",
 						n,
 						addr,
-						err,
-					)
+						err)
+					if connectAttempts >= maxConnectAttempts {
+						errMsg = fmt.Sprintf("NetNode: %s, failed to connect to %s, reached maxConnectAttempts, removing from knownAddrs: %v\n", n, addr, err)
+					}
+					n.logger.Errorf(errMsg)
+
 					// if the connection attemps is less than maxConnectAttempts, we will try to connect again
 					// otherwise we will remove the address from the known addresses list
 					// by not adding it to the updatedKnownAddrs map
@@ -219,13 +223,13 @@ func (n *NetNode) ping(quitCh chan struct{}) {
 	for {
 		select {
 		case <-quitCh:
-			fmt.Printf("NetNode: %s, stopping ping\n", n)
+			n.logger.Infof("NetNode: %s, stopping ping\n", n)
 			return
 		default:
 			for c, p := range n.peers.peersForPing() {
 				_, err := n.handshakeClient(c)
 				if err != nil {
-					fmt.Printf("NetNode: %s, failed to ping %s: %v\n", n, c, err)
+					n.logger.Errorf("NetNode: %s, failed to ping %s: %v\n", n, c, err)
 					n.knownAddrs.append(p.ListenAddress, 0)
 					n.peers.removePeer(c)
 					continue
