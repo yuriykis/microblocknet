@@ -23,12 +23,25 @@ type Node interface {
 	NewBlock(ctx context.Context, b *proto.Block) (*proto.Block, error)
 }
 
+type quit struct {
+	tryConnectCh chan struct{}
+	pingCh       chan struct{}
+	showPeersCh  chan struct{}
+}
+
+func (q *quit) shutdown() {
+	close(q.tryConnectCh)
+	close(q.pingCh)
+	close(q.showPeersCh)
+}
+
 type NetNode struct {
 	ListenAddress string
 
 	logger     *zap.SugaredLogger
 	peers      *peersMap
 	knownAddrs *knownAddrs
+	quit
 }
 
 func New(listenAddress string) *NetNode {
@@ -37,15 +50,19 @@ func New(listenAddress string) *NetNode {
 		peers:         NewPeersMap(),
 		logger:        makeLogger(),
 		knownAddrs:    newKnownAddrs(),
+		quit: quit{
+			tryConnectCh: make(chan struct{}),
+			pingCh:       make(chan struct{}),
+			showPeersCh:  make(chan struct{}),
+		},
 	}
 }
 
 func (n *NetNode) Start(listenAddr string, bootstrapNodes []string, server Server) error {
 
-	// TODO: add graceful shutdown for all goroutines
-	go n.tryConnect()
-	go n.ping()
-	go n.showPeers()
+	go n.tryConnect(n.tryConnectCh)
+	go n.ping(n.pingCh)
+	go n.showPeers(n.showPeersCh)
 
 	if len(bootstrapNodes) > 0 {
 		go func() {
@@ -57,14 +74,22 @@ func (n *NetNode) Start(listenAddr string, bootstrapNodes []string, server Serve
 	return server.Serve()
 }
 
-func (n *NetNode) showPeers() {
+func (n *NetNode) showPeers(quitCh chan struct{}) {
 	for {
-		fmt.Printf("Node %s, peers: %v\n", n, n.Peers())
-		time.Sleep(3 * time.Second)
+		select {
+		case <-quitCh:
+			fmt.Printf("NetNode: %s, stopping showPeers\n", n)
+			return
+		default:
+			fmt.Printf("Node %s, peers: %v\n", n, n.Peers())
+			fmt.Printf("Node %s, knownAddrs: %v\n", n, n.knownAddrs.list())
+			time.Sleep(3 * time.Second)
+		}
 	}
 }
 
 func (n *NetNode) Stop(server Server) {
+	n.shutdown()
 	server.Close()
 }
 
@@ -151,46 +176,58 @@ func (n *NetNode) BootstrapNetwork(addrs []string) error {
 }
 
 // TryConnect tries to connect to known addresses
-func (n *NetNode) tryConnect() {
+func (n *NetNode) tryConnect(quitCh chan struct{}) {
 	for {
-		updatedKnownAddrs := make(map[string]int, 0)
-		for addr, connectAttempts := range n.knownAddrs.list() {
-			if !n.canConnectWith(addr) {
-				continue
+		select {
+		case <-quitCh:
+			fmt.Printf("NetNode: %s, stopping tryConnect\n", n)
+			return
+		default:
+			updatedKnownAddrs := make(map[string]int, 0)
+			for addr, connectAttempts := range n.knownAddrs.list() {
+				if !n.canConnectWith(addr) {
+					continue
+				}
+				client, version, err := n.dialRemote(addr)
+				if err != nil {
+					fmt.Printf(
+						"NetNode: %s, failed to connect to %s, will retry later: %v\n",
+						n,
+						addr,
+						err,
+					)
+					updatedKnownAddrs[addr] = connectAttempts + 1
+					continue
+				}
+				n.addPeer(client, version)
 			}
-			client, version, err := n.dialRemote(addr)
-			if err != nil {
-				fmt.Printf(
-					"NetNode: %s, failed to connect to %s, will retry later: %v\n",
-					n,
-					addr,
-					err,
-				)
-				updatedKnownAddrs[addr] = connectAttempts + 1
-				continue
-			}
-			n.addPeer(client, version)
+			n.knownAddrs.update(updatedKnownAddrs)
+			time.Sleep(connectInterval)
 		}
-		n.knownAddrs.update(updatedKnownAddrs)
-		time.Sleep(connectInterval)
 	}
 }
 
 // Ping pings all known peers, if peer is not available,
 // it will be removed from the peers list and added to the known addresses list
-func (n *NetNode) ping() {
+func (n *NetNode) ping(quitCh chan struct{}) {
 	for {
-		for c, p := range n.peers.peersForPing() {
-			_, err := n.handshakeClient(c)
-			if err != nil {
-				fmt.Printf("NetNode: %s, failed to ping %s: %v\n", n, c, err)
-				n.knownAddrs.append(p.ListenAddress, 0)
-				n.peers.removePeer(c)
-				continue
+		select {
+		case <-quitCh:
+			fmt.Printf("NetNode: %s, stopping ping\n", n)
+			return
+		default:
+			for c, p := range n.peers.peersForPing() {
+				_, err := n.handshakeClient(c)
+				if err != nil {
+					fmt.Printf("NetNode: %s, failed to ping %s: %v\n", n, c, err)
+					n.knownAddrs.append(p.ListenAddress, 0)
+					n.peers.removePeer(c)
+					continue
+				}
+				n.peers.updateLastPingTime(c)
 			}
-			n.peers.updateLastPingTime(c)
+			time.Sleep(pingInterval)
 		}
-		time.Sleep(pingInterval)
 	}
 }
 
