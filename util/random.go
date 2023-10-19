@@ -2,7 +2,6 @@ package util
 
 import (
 	randc "crypto/rand"
-	"encoding/hex"
 	"io"
 	"math/rand"
 	"time"
@@ -10,10 +9,10 @@ import (
 	"github.com/yuriykis/microblocknet/proto"
 )
 
-func RandomHash() string {
+func RandomHash() []byte {
 	hash := make([]byte, 32)
 	io.ReadFull(randc.Reader, hash)
-	return hex.EncodeToString(hash)
+	return hash
 }
 
 func RandomBlock() *proto.Block {

@@ -11,18 +11,18 @@ import (
 func transactionToHashable(tx *proto.Transaction) *proto.Transaction {
 	// hash transaction without signatures in inputs
 	for _, input := range tx.Inputs {
-		input.Signature = ""
+		input.Signature = nil
 	}
 	return tx
 }
 
-func HashTransaction(tx *proto.Transaction) []byte {
+func HashTransaction(tx *proto.Transaction) string {
 	b, err := pb.Marshal(transactionToHashable(tx))
 	if err != nil {
 		panic(err)
 	}
 	hash := sha256.Sum256(b)
-	return hash[:]
+	return string(hash[:])
 }
 
 func SignTransaction(tx *proto.Transaction, privKey *crypto.PrivateKey) *crypto.Signature {
@@ -31,8 +31,8 @@ func SignTransaction(tx *proto.Transaction, privKey *crypto.PrivateKey) *crypto.
 
 func VerifyTransaction(tx *proto.Transaction) bool {
 	for _, input := range tx.Inputs {
-		sig := crypto.SignatureFromString(input.Signature)
-		pubKey := crypto.PublicKeyFromString(input.PublicKey)
+		sig := crypto.SignatureFromBytes(input.Signature)
+		pubKey := crypto.PublicKeyFromBytes(input.PublicKey)
 		if !pubKey.Verify(HashTransaction(tx), sig) {
 			return false
 		}

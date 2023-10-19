@@ -11,14 +11,14 @@ import (
 
 func TestHashTransaction(t *testing.T) {
 	fromPrivKey := crypto.GeneratePrivateKey()
-	fromAddress := fromPrivKey.PublicKey().Address().String()
+	fromAddress := fromPrivKey.PublicKey().Address().Bytes()
 
 	toPrivKey := crypto.GeneratePrivateKey()
-	toAddress := toPrivKey.PublicKey().Address().String()
+	toAddress := toPrivKey.PublicKey().Address().Bytes()
 
 	txInput := &proto.TxInput{
 		PrevTxHash: util.RandomHash(),
-		PublicKey:  fromPrivKey.PublicKey().String(),
+		PublicKey:  fromPrivKey.PublicKey().Bytes(),
 	}
 	txOutput1 := &proto.TxOutput{
 		Value:   100,
@@ -34,6 +34,6 @@ func TestHashTransaction(t *testing.T) {
 	}
 
 	sig := SignTransaction(tx, fromPrivKey)
-	txInput.Signature = sig.String()
+	txInput.Signature = sig.Bytes()
 	assert.True(t, VerifyTransaction(tx))
 }

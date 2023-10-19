@@ -8,25 +8,25 @@ import (
 	pb "google.golang.org/protobuf/proto"
 )
 
-func HashBlock(block *proto.Block) []byte {
+func HashBlock(block *proto.Block) string {
 	// hash only block header
 	b, err := pb.Marshal(block.Header)
 	if err != nil {
 		panic(err)
 	}
 	hash := sha256.Sum256(b)
-	return hash[:]
+	return string(hash[:])
 }
 
 func SignBlock(block *proto.Block, privKey *crypto.PrivateKey) *crypto.Signature {
 	sig := privKey.Sign(HashBlock(block))
-	block.Signature = sig.String()
-	block.PublicKey = privKey.PublicKey().String()
+	block.Signature = sig.Bytes()
+	block.PublicKey = privKey.PublicKey().Bytes()
 	return sig
 }
 
 func VerifyBlock(block *proto.Block) bool {
-	sig := crypto.SignatureFromString(block.Signature)
-	pubKey := crypto.PublicKeyFromString(block.PublicKey)
+	sig := crypto.SignatureFromBytes(block.Signature)
+	pubKey := crypto.PublicKeyFromBytes(block.PublicKey)
 	return pubKey.Verify(HashBlock(block), sig)
 }

@@ -3,7 +3,6 @@ package crypto
 import (
 	"crypto/ed25519"
 	"crypto/rand"
-	"encoding/hex"
 )
 
 const (
@@ -27,7 +26,7 @@ func (p *PrivateKey) Bytes() []byte {
 }
 
 func (p *PrivateKey) String() string {
-	return hex.EncodeToString(p.key)
+	return string(p.key)
 }
 
 func GeneratePrivateKey() *PrivateKey {
@@ -50,11 +49,7 @@ func PrivateKeyFromBytes(key []byte) *PrivateKey {
 }
 
 func PrivateKeyFromString(key string) *PrivateKey {
-	b, err := hex.DecodeString(key)
-	if err != nil {
-		panic(err)
-	}
-	return PrivateKeyFromBytes(b)
+	return PrivateKeyFromBytes([]byte(key))
 }
 
 func (p *PrivateKey) PublicKey() *PublicKey {
@@ -67,9 +62,10 @@ func (p *PrivateKey) PublicKey() *PublicKey {
 	}
 }
 
-func (p *PrivateKey) Sign(message []byte) *Signature {
+func (p *PrivateKey) Sign(message string) *Signature {
+	msg := []byte(message)
 	return &Signature{
-		value: ed25519.Sign(p.key, message),
+		value: ed25519.Sign(p.key, msg),
 	}
 }
 
@@ -86,15 +82,13 @@ func PublicKeyFromBytes(key []byte) *PublicKey {
 }
 
 func PublicKeyFromString(key string) *PublicKey {
-	b, err := hex.DecodeString(key)
-	if err != nil {
-		panic(err)
-	}
+	b := []byte(key)
 	return PublicKeyFromBytes(b)
 }
 
-func (p *PublicKey) Verify(message []byte, sig *Signature) bool {
-	return ed25519.Verify(p.key, message, sig.value)
+func (p *PublicKey) Verify(message string, sig *Signature) bool {
+	msg := []byte(message)
+	return ed25519.Verify(p.key, msg, sig.value)
 }
 
 func (p *PublicKey) Address() *Address {
@@ -108,7 +102,7 @@ func (p *PublicKey) Bytes() []byte {
 }
 
 func (p *PublicKey) String() string {
-	return hex.EncodeToString(p.key)
+	return string(p.key)
 }
 
 type Signature struct {
@@ -124,10 +118,7 @@ func SignatureFromBytes(value []byte) *Signature {
 }
 
 func SignatureFromString(value string) *Signature {
-	b, err := hex.DecodeString(value)
-	if err != nil {
-		panic(err)
-	}
+	b := []byte(value)
 	return SignatureFromBytes(b)
 }
 
@@ -136,10 +127,10 @@ func (s *Signature) Bytes() []byte {
 }
 
 func (s *Signature) String() string {
-	return hex.EncodeToString(s.value)
+	return string(s.value)
 }
 
-func (s *Signature) Verify(message []byte, pubKey *PublicKey) bool {
+func (s *Signature) Verify(message string, pubKey *PublicKey) bool {
 	return pubKey.Verify(message, s)
 }
 
@@ -148,5 +139,9 @@ type Address struct {
 }
 
 func (a *Address) String() string {
-	return hex.EncodeToString(a.value)
+	return string(a.value)
+}
+
+func (a *Address) Bytes() []byte {
+	return a.value
 }

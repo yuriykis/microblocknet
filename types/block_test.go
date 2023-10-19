@@ -12,7 +12,7 @@ func TestHashBlock(t *testing.T) {
 	block := util.RandomBlock()
 	hash := HashBlock(block)
 	if len(hash) != 32 {
-		t.Errorf("HashBlock() = %v, want %v", len(hash), 32)
+		t.Errorf("HashBlock() = %v, want %v", len([]byte(hash)), 32)
 	}
 }
 func TestSignBlock(t *testing.T) {
