@@ -89,6 +89,7 @@ func makeTransaction(endpoint string) {
 		log.Fatal(err)
 	}
 	c := proto.NewNodeClient(conn)
+	defer conn.Close()
 
 	myPrivKey := crypto.GeneratePrivateKey()
 	myAddress := myPrivKey.PublicKey().Address()
