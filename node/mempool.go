@@ -32,3 +32,13 @@ func (m *Mempool) Contains(tx *proto.Transaction) bool {
 	_, ok := m.txx[hashTx]
 	return ok
 }
+
+func (m *Mempool) list() []*proto.Transaction {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+	txx := make([]*proto.Transaction, 0)
+	for _, tx := range m.txx {
+		txx = append(txx, tx)
+	}
+	return txx
+}

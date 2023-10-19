@@ -26,15 +26,15 @@ type Node interface {
 }
 
 type quit struct {
-	tryConnectCh chan struct{}
-	pingCh       chan struct{}
-	showPeersCh  chan struct{}
+	tryConnectQuitCh   chan struct{}
+	pingQuitCh         chan struct{}
+	showNodeInfoQuitCh chan struct{}
 }
 
 func (q *quit) shutdown() {
-	close(q.tryConnectCh)
-	close(q.pingCh)
-	close(q.showPeersCh)
+	close(q.tryConnectQuitCh)
+	close(q.pingQuitCh)
+	close(q.showNodeInfoQuitCh)
 }
 
 type NetNode struct {
@@ -56,18 +56,18 @@ func New(listenAddress string) *NetNode {
 		knownAddrs:    newKnownAddrs(),
 		mempool:       NewMempool(),
 		quit: quit{
-			tryConnectCh: make(chan struct{}),
-			pingCh:       make(chan struct{}),
-			showPeersCh:  make(chan struct{}),
+			tryConnectQuitCh:   make(chan struct{}),
+			pingQuitCh:         make(chan struct{}),
+			showNodeInfoQuitCh: make(chan struct{}),
 		},
 	}
 }
 
 func (n *NetNode) Start(listenAddr string, bootstrapNodes []string, server Server) error {
 
-	go n.tryConnect(n.tryConnectCh)
-	go n.ping(n.pingCh)
-	go n.showPeers(n.showPeersCh)
+	go n.tryConnect(n.tryConnectQuitCh)
+	go n.ping(n.pingQuitCh)
+	go n.showNodeInfo(n.showNodeInfoQuitCh)
 
 	if len(bootstrapNodes) > 0 {
 		go func() {
@@ -79,7 +79,7 @@ func (n *NetNode) Start(listenAddr string, bootstrapNodes []string, server Serve
 	return server.Serve()
 }
 
-func (n *NetNode) showPeers(quitCh chan struct{}) {
+func (n *NetNode) showNodeInfo(quitCh chan struct{}) {
 	n.logger.Infof("NetNode: %s, starting showPeers\n", n)
 	for {
 		select {
@@ -87,8 +87,9 @@ func (n *NetNode) showPeers(quitCh chan struct{}) {
 			n.logger.Infof("NetNode: %s, stopping showPeers", n)
 			return
 		default:
-			n.logger.Infof("Node %s, peers: %v", n, n.Peers())
+			n.logger.Infof("Node %s, peers: %v", n, n.PeersAddrs())
 			n.logger.Infof("Node %s, knownAddrs: %v", n, n.knownAddrs.list())
+			n.logger.Infof("Node %s, mempool: %v", n, n.mempool.list())
 			time.Sleep(3 * time.Second)
 		}
 	}
@@ -132,6 +133,9 @@ func (n *NetNode) NewTransaction(
 	n.mempool.Add(t)
 	n.logger.Infof("NetNode: %s, transaction added to mempool", n)
 
+	// check how to broadcast transaction when peer is not available
+	go n.broadcast(t)
+
 	return t, nil
 }
 
@@ -143,7 +147,7 @@ func (n *NetNode) Version() *proto.Version {
 	return &proto.Version{
 		Version:       "0.0.1",
 		ListenAddress: n.ListenAddress,
-		Peers:         n.Peers(),
+		Peers:         n.PeersAddrs(),
 	}
 }
 
@@ -183,6 +187,32 @@ func (n *NetNode) handshakeClient(c client.Client) (*proto.Version, error) {
 	return version, nil
 }
 
+func (n *NetNode) broadcast(msg any) {
+	for c := range n.Peers() {
+		if err := n.sendMsg(c, msg); err != nil {
+			n.logger.Errorf("NetNode: %s, failed to send message to %s: %v", n, c, err)
+		}
+	}
+}
+
+func (n *NetNode) sendMsg(c client.Client, msg any) error {
+	switch m := msg.(type) {
+	case *proto.Transaction:
+		_, err := c.NewTransaction(context.Background(), m)
+		if err != nil {
+			return err
+		}
+	case *proto.Block:
+		_, err := c.NewBlock(context.Background(), m)
+		if err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("NetNode: %s, unknown message type: %v", n, msg)
+	}
+	return nil
+}
+
 func (n *NetNode) BootstrapNetwork(addrs []string) error {
 	for _, addr := range addrs {
 		if !n.canConnectWith(addr) {
@@ -215,7 +245,12 @@ func (n *NetNode) tryConnect(quitCh chan struct{}) {
 						addr,
 						err)
 					if connectAttempts >= maxConnectAttempts {
-						errMsg = fmt.Sprintf("NetNode: %s, failed to connect to %s, reached maxConnectAttempts, removing from knownAddrs: %v\n", n, addr, err)
+						errMsg = fmt.Sprintf(
+							"NetNode: %s, failed to connect to %s, reached maxConnectAttempts, removing from knownAddrs: %v\n",
+							n,
+							addr,
+							err,
+						)
 					}
 					n.logger.Errorf(errMsg)
 
@@ -264,7 +299,7 @@ func (n *NetNode) canConnectWith(addr string) bool {
 	if addr == n.ListenAddress {
 		return false
 	}
-	for _, peer := range n.Peers() {
+	for _, peer := range n.PeersAddrs() {
 		if peer == addr {
 			return false
 		}
@@ -272,8 +307,12 @@ func (n *NetNode) canConnectWith(addr string) bool {
 	return true
 }
 
-func (n *NetNode) Peers() []string {
-	return n.peers.List()
+func (n *NetNode) PeersAddrs() []string {
+	return n.peers.Addresses()
+}
+
+func (n *NetNode) Peers() map[client.Client]*peer {
+	return n.peers.list()
 }
 
 func makeLogger() *zap.SugaredLogger {

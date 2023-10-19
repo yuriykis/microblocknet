@@ -44,7 +44,7 @@ func (pm *peersMap) removePeer(c client.Client) {
 	delete(pm.peers, c)
 }
 
-func (pm *peersMap) List() []string {
+func (pm *peersMap) Addresses() []string {
 	pm.lock.RLock()
 	defer pm.lock.RUnlock()
 	peersList := make([]string, 0)
@@ -52,6 +52,12 @@ func (pm *peersMap) List() []string {
 		peersList = append(peersList, v.ListenAddress)
 	}
 	return peersList
+}
+
+func (pm *peersMap) list() map[client.Client]*peer {
+	pm.lock.RLock()
+	defer pm.lock.RUnlock()
+	return pm.peers
 }
 
 func (pm *peersMap) peersForPing() map[client.Client]*peer {
