@@ -1,12 +1,18 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/yuriykis/microblocknet/crypto"
 	"github.com/yuriykis/microblocknet/node"
+	"github.com/yuriykis/microblocknet/proto"
+	"github.com/yuriykis/microblocknet/util"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 const defaultListenAddr = ":3000"
@@ -56,10 +62,55 @@ func debug() {
 	go n3.Start(n3.ListenAddress, []string{":3000"}, grpcServer3)
 	go n4.Start(n4.ListenAddress, []string{":3001"}, grpcServer4)
 
-	go func(stopTime int, server node.Server) {
-		time.Sleep(time.Duration(stopTime) * time.Second)
-		n1.Stop(server)
-	}(10, grpcServer1)
+	go sendTransaction(n1, 5)
+
+	// go stop(n1, grpcServer1, 10)
+	// go stop(n2, grpcServer2, 30)
 
 	select {}
+}
+
+func stop(n *node.NetNode, server node.Server, duration time.Duration) {
+	time.Sleep(duration * time.Second)
+	n.Stop(server)
+}
+
+func sendTransaction(n *node.NetNode, duration time.Duration) {
+	time.Sleep(duration * time.Second)
+	makeTransaction(n.ListenAddress)
+}
+
+func makeTransaction(endpoint string) {
+	conn, err := grpc.Dial(
+		endpoint,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	c := proto.NewNodeClient(conn)
+
+	myPrivKey := crypto.GeneratePrivateKey()
+	myAddress := myPrivKey.PublicKey().Address()
+
+	receiverAddress := crypto.GeneratePrivateKey().PublicKey().Address()
+
+	txInput := &proto.TxInput{
+		PrevTxHash: util.RandomHash(),
+		PublicKey:  myPrivKey.PublicKey().Bytes(),
+	}
+	txOutput1 := &proto.TxOutput{
+		Value:   100,
+		Address: receiverAddress.Bytes(),
+	}
+	txOutput2 := &proto.TxOutput{
+		Value:   900,
+		Address: myAddress.Bytes(),
+	}
+	tx := &proto.Transaction{
+		Inputs:  []*proto.TxInput{txInput},
+		Outputs: []*proto.TxOutput{txOutput1, txOutput2},
+	}
+	ctx := context.Background()
+	c.NewTransaction(ctx, tx)
 }

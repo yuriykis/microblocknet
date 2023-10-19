@@ -14,9 +14,9 @@ import (
 )
 
 const (
-	connectInterval    = 1 * time.Second
-	pingInterval       = 5 * time.Second
-	maxConnectAttempts = 20
+	connectInterval    = 10 * time.Second
+	pingInterval       = 20 * time.Second
+	maxConnectAttempts = 100
 )
 
 type Node interface {
@@ -54,6 +54,7 @@ func New(listenAddress string) *NetNode {
 		peers:         NewPeersMap(),
 		logger:        makeLogger(),
 		knownAddrs:    newKnownAddrs(),
+		mempool:       NewMempool(),
 		quit: quit{
 			tryConnectCh: make(chan struct{}),
 			pingCh:       make(chan struct{}),

@@ -8,7 +8,7 @@ import (
 	"github.com/yuriykis/microblocknet/proto"
 )
 
-const checkConnectInterval = 15 * time.Second
+const checkConnectInterval = 50 * time.Second
 
 type peer struct {
 	*proto.Version
