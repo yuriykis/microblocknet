@@ -18,8 +18,8 @@ message Version {
 message Block {
   Header header = 1;
   repeated Transaction transactions = 2;
-  bytes public_key = 3;
-  bytes signature = 4;
+  string public_key = 3;
+  string signature = 4;
 }
 
 message Header {
@@ -36,6 +36,7 @@ message TxInput {
   int32 out_index = 2;
   string public_key = 3;
   string signature = 4;
+  string prev_tx_hash = 5;
 }
 
 message TxOutput {

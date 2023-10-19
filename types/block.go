@@ -20,13 +20,13 @@ func HashBlock(block *proto.Block) []byte {
 
 func SignBlock(block *proto.Block, privKey *crypto.PrivateKey) *crypto.Signature {
 	sig := privKey.Sign(HashBlock(block))
-	block.Signature = sig.Bytes()
-	block.PublicKey = privKey.PublicKey().Bytes()
+	block.Signature = sig.String()
+	block.PublicKey = privKey.PublicKey().String()
 	return sig
 }
 
 func VerifyBlock(block *proto.Block) bool {
-	sig := crypto.SignatureFromBytes(block.Signature)
-	pubKey := crypto.PublicKeyFromBytes(block.PublicKey)
+	sig := crypto.SignatureFromString(block.Signature)
+	pubKey := crypto.PublicKeyFromString(block.PublicKey)
 	return pubKey.Verify(HashBlock(block), sig)
 }

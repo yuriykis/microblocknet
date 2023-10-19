@@ -8,8 +8,16 @@ import (
 	pb "google.golang.org/protobuf/proto"
 )
 
+func transactionToHashable(tx *proto.Transaction) *proto.Transaction {
+	// hash transaction without signatures in inputs
+	for _, input := range tx.Inputs {
+		input.Signature = ""
+	}
+	return tx
+}
+
 func HashTransaction(tx *proto.Transaction) []byte {
-	b, err := pb.Marshal(tx)
+	b, err := pb.Marshal(transactionToHashable(tx))
 	if err != nil {
 		panic(err)
 	}

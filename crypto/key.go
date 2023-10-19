@@ -107,6 +107,10 @@ func (p *PublicKey) Bytes() []byte {
 	return p.key
 }
 
+func (p *PublicKey) String() string {
+	return hex.EncodeToString(p.key)
+}
+
 type Signature struct {
 	value []byte
 }
@@ -131,6 +135,10 @@ func (s *Signature) Bytes() []byte {
 	return s.value
 }
 
+func (s *Signature) String() string {
+	return hex.EncodeToString(s.value)
+}
+
 func (s *Signature) Verify(message []byte, pubKey *PublicKey) bool {
 	return pubKey.Verify(message, s)
 }
@@ -139,10 +147,6 @@ type Address struct {
 	value []byte
 }
 
-func (a *Address) Bytes() []byte {
-	return a.value
-}
-
 func (a *Address) String() string {
-	return string(a.value)
+	return hex.EncodeToString(a.value)
 }
