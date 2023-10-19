@@ -34,14 +34,14 @@ func TestPrivateKeyFromString(t *testing.T) {
 
 	privKey2 := PrivateKeyFromString(privKey.String())
 	assert.NotNil(t, privKey2)
-	assert.Equal(t, PrivateKeyLength, len(privKey2.key))
+	assert.Equal(t, PrivateKeyLength, len(privKey2.Bytes()))
 	assert.Equal(t, privKey.key, privKey2.key)
 }
 
 func TestPrivateKeySign(t *testing.T) {
 	privKey := GeneratePrivateKey()
 	assert.NotNil(t, privKey)
-	assert.Equal(t, PrivateKeyLength, len(privKey.key))
+	assert.Equal(t, PrivateKeyLength, len(privKey.Bytes()))
 
 	msg := []byte("Hello, World!")
 	sig := privKey.Sign(msg)
