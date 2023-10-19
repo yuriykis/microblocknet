@@ -15,6 +15,7 @@ message Version {
   repeated string peers = 4;
 }
 
+
 message Block {
   Header header = 1;
   repeated Transaction transactions = 2;

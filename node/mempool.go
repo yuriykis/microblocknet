@@ -24,3 +24,11 @@ func (m *Mempool) Add(tx *proto.Transaction) {
 	hashTx := string(types.HashTransaction(tx))
 	m.txx[hashTx] = tx
 }
+
+func (m *Mempool) Contains(tx *proto.Transaction) bool {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+	hashTx := string(types.HashTransaction(tx))
+	_, ok := m.txx[hashTx]
+	return ok
+}

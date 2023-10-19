@@ -10,6 +10,7 @@ import (
 	"github.com/yuriykis/microblocknet/proto"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	gprcPeer "google.golang.org/grpc/peer"
 )
 
 const (
@@ -42,6 +43,8 @@ type NetNode struct {
 	logger     *zap.SugaredLogger
 	peers      *peersMap
 	knownAddrs *knownAddrs
+
+	mempool *Mempool
 	quit
 }
 
@@ -116,7 +119,19 @@ func (n *NetNode) NewTransaction(
 	ctx context.Context,
 	t *proto.Transaction,
 ) (*proto.Transaction, error) {
-	return &proto.Transaction{}, nil
+	peer, ok := gprcPeer.FromContext(ctx)
+	if !ok {
+		return nil, fmt.Errorf("NetNode: %s, failed to get peer from context", n)
+	}
+	n.logger.Infof("NetNode: %s, received transaction from %s", n, peer.Addr.String())
+
+	if n.mempool.Contains(t) {
+		return nil, fmt.Errorf("NetNode: %s, transaction already exists in mempool", n)
+	}
+	n.mempool.Add(t)
+	n.logger.Infof("NetNode: %s, transaction added to mempool", n)
+
+	return t, nil
 }
 
 func (n *NetNode) NewBlock(ctx context.Context, b *proto.Block) (*proto.Block, error) {
