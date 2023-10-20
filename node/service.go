@@ -6,6 +6,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/yuriykis/microblocknet/crypto"
 	"github.com/yuriykis/microblocknet/node/client"
 	"github.com/yuriykis/microblocknet/proto"
 	"go.uber.org/zap"
@@ -37,8 +38,13 @@ func (q *quit) shutdown() {
 	close(q.showNodeInfoQuitCh)
 }
 
-type NetNode struct {
+type ServerConfig struct {
+	Version       string
 	ListenAddress string
+	PrivateKey    *crypto.PrivateKey
+}
+type NetNode struct {
+	ServerConfig
 
 	logger     *zap.SugaredLogger
 	peers      *peersMap
@@ -50,11 +56,15 @@ type NetNode struct {
 
 func New(listenAddress string) *NetNode {
 	return &NetNode{
-		ListenAddress: listenAddress,
-		peers:         NewPeersMap(),
-		logger:        makeLogger(),
-		knownAddrs:    newKnownAddrs(),
-		mempool:       NewMempool(),
+		ServerConfig: ServerConfig{
+			Version:       "0.0.1",
+			ListenAddress: listenAddress,
+			PrivateKey:    nil,
+		},
+		peers:      NewPeersMap(),
+		logger:     makeLogger(),
+		knownAddrs: newKnownAddrs(),
+		mempool:    NewMempool(),
 		quit: quit{
 			tryConnectQuitCh:   make(chan struct{}),
 			pingQuitCh:         make(chan struct{}),
@@ -63,7 +73,7 @@ func New(listenAddress string) *NetNode {
 	}
 }
 
-func (n *NetNode) Start(listenAddr string, bootstrapNodes []string, server Server) error {
+func (n *NetNode) Start(listenAddr string, bootstrapNodes []string, server Server, isValidator bool) error {
 
 	go n.tryConnect(n.tryConnectQuitCh)
 	go n.ping(n.pingQuitCh)
@@ -76,7 +86,20 @@ func (n *NetNode) Start(listenAddr string, bootstrapNodes []string, server Serve
 			}
 		}()
 	}
+
+	if isValidator {
+		n.PrivateKey = crypto.GeneratePrivateKey()
+		go n.validatorLoop()
+	}
 	return server.Serve()
+}
+
+func (n *NetNode) validatorLoop() {
+	n.logger.Infof("NetNode: %s, starting validatorLoop\n", n)
+	for {
+		n.logger.Infof("NetNode: %s, creating block\n", n)
+		time.Sleep(10 * time.Second)
+	}
 }
 
 func (n *NetNode) showNodeInfo(quitCh chan struct{}) {
