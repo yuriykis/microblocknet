@@ -33,11 +33,10 @@ message Header {
 }
 
 message TxInput {
-  string tx_id = 1;
-  int32 out_index = 2;
-  bytes public_key = 3;
-  bytes signature = 4;
-  bytes prev_tx_hash = 5;
+  int32 out_index = 1;
+  bytes public_key = 2;
+  bytes signature = 3;
+  bytes prev_tx_hash = 4;
 }
 
 message TxOutput {
@@ -46,7 +45,6 @@ message TxOutput {
 }
 
 message Transaction {
-  string id = 1;
-  repeated TxInput inputs = 2;
-  repeated TxOutput outputs = 3;
+  repeated TxInput inputs = 1;
+  repeated TxOutput outputs = 2;
 }

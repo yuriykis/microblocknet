@@ -9,12 +9,12 @@ import (
 
 type Mempool struct {
 	lock sync.RWMutex
-	txx  map[string]*proto.Transaction
+	txs  map[string]*proto.Transaction
 }
 
 func NewMempool() *Mempool {
 	return &Mempool{
-		txx: make(map[string]*proto.Transaction),
+		txs: make(map[string]*proto.Transaction),
 	}
 }
 
@@ -22,23 +22,23 @@ func (m *Mempool) Add(tx *proto.Transaction) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	hashTx := string(types.HashTransaction(tx))
-	m.txx[hashTx] = tx
+	m.txs[hashTx] = tx
 }
 
 func (m *Mempool) Contains(tx *proto.Transaction) bool {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 	hashTx := string(types.HashTransaction(tx))
-	_, ok := m.txx[hashTx]
+	_, ok := m.txs[hashTx]
 	return ok
 }
 
 func (m *Mempool) list() []*proto.Transaction {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
-	txx := make([]*proto.Transaction, 0)
-	for _, tx := range m.txx {
-		txx = append(txx, tx)
+	txs := make([]*proto.Transaction, 0)
+	for _, tx := range m.txs {
+		txs = append(txs, tx)
 	}
-	return txx
+	return txs
 }
