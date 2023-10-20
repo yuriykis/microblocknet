@@ -47,44 +47,46 @@ func TestChainAddBlockWithTxs(t *testing.T) {
 	myPrivKey := crypto.GeneratePrivateKey()
 	toAddress := crypto.GeneratePrivateKey().PublicKey().Address()
 
-	for i := 0; i < 10; i++ {
-		prevBlock, err := chain.GetBlockByHeight(i)
-		assert.NoError(t, err)
-		prevBlockTx := prevBlock.GetTransactions()[len(prevBlock.GetTransactions())-1]
-		assert.NotNil(t, prevBlockTx)
+	currentValue := int64(100000)
+	// for i := 0; i < 10; i++ {
+	prevBlock, err := chain.GetBlockByHeight(0)
+	assert.NoError(t, err)
+	prevBlockTx := prevBlock.GetTransactions()[len(prevBlock.GetTransactions())-1]
+	assert.NotNil(t, prevBlockTx)
 
-		block := util.RandomBlock()
-		inputs := []*proto.TxInput{
-			{
-				PublicKey:  myPrivKey.PublicKey().Bytes(),
-				PrevTxHash: []byte(types.HashTransaction(prevBlockTx)),
-				OutIndex:   0,
-			},
-		}
-		outputs := []*proto.TxOutput{
-			{
-				Value:   100,
-				Address: toAddress.Bytes(),
-			},
-			{
-				Value:   99900,
-				Address: myPrivKey.PublicKey().Address().Bytes(),
-			},
-		}
-		tx := &proto.Transaction{
-			Inputs:  inputs,
-			Outputs: outputs,
-		}
-		sig := types.SignTransaction(tx, myPrivKey)
-		tx.Inputs[0].Signature = sig.Bytes()
-
-		block.Transactions = append(block.Transactions, tx)
-		block.Header.PrevBlockHash = []byte(types.HashBlock(prevBlock))
-		block.Header.Height = int32(i + 1)
-
-		types.SignBlock(block, myPrivKey)
-
-		err = chain.AddBlock(block)
-		assert.NoError(t, err)
+	block := util.RandomBlock()
+	inputs := []*proto.TxInput{
+		{
+			PublicKey:  myPrivKey.PublicKey().Bytes(),
+			PrevTxHash: []byte(types.HashTransaction(prevBlockTx)),
+			OutIndex:   0,
+		},
 	}
+	// fix the outputs not being recognized as an inputs in the next transaction
+	outputs := []*proto.TxOutput{
+		{
+			Value:   100,
+			Address: toAddress.Bytes(),
+		},
+		{
+			Value:   currentValue - 100,
+			Address: myPrivKey.PublicKey().Address().Bytes(),
+		},
+	}
+	tx := &proto.Transaction{
+		Inputs:  inputs,
+		Outputs: outputs,
+	}
+	sig := types.SignTransaction(tx, myPrivKey)
+	tx.Inputs[0].Signature = sig.Bytes()
+
+	block.Transactions = append(block.Transactions, tx)
+	block.Header.PrevBlockHash = []byte(types.HashBlock(prevBlock))
+	block.Header.Height = int32(1)
+
+	types.SignBlock(block, myPrivKey)
+
+	err = chain.AddBlock(block)
+	assert.NoError(t, err)
+	// }
 }

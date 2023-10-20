@@ -136,16 +136,35 @@ func (c *Chain) ValidateBlock(b *proto.Block) error {
 		)
 	}
 	for _, tx := range b.Transactions {
-		if err := ValidateTransaction(tx); err != nil {
+		if err := c.ValidateTransaction(tx); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func ValidateTransaction(tx *proto.Transaction) error {
+func (c *Chain) ValidateTransaction(tx *proto.Transaction) error {
 	if !types.VerifyTransaction(tx) {
 		return fmt.Errorf("transaction is not valid")
+	}
+	inputsSum := int64(0)
+	for _, input := range tx.Inputs {
+		utxoKey := types.MakeUTXOKey(input.PrevTxHash, int(input.OutIndex))
+		utxo, err := c.utxoStore.Get(utxoKey)
+		if err != nil {
+			return err
+		}
+		if utxo.Spent {
+			return fmt.Errorf("utxo %s is already spent", utxoKey)
+		}
+		inputsSum += utxo.Output.Value
+	}
+	outputsSum := int64(0)
+	for _, output := range tx.Outputs {
+		outputsSum += output.Value
+	}
+	if inputsSum < outputsSum {
+		return fmt.Errorf("inputs sum %d is less than outputs sum %d", inputsSum, outputsSum)
 	}
 	return nil
 }
