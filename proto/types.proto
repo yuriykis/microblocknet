@@ -40,11 +40,18 @@ message TxInput {
 }
 
 message TxOutput {
-  int32 value = 1;
+  int64 value = 1;
   bytes address = 2;
 }
 
 message Transaction {
   repeated TxInput inputs = 1;
   repeated TxOutput outputs = 2;
+}
+
+message UTXO {
+  bytes tx_hash = 1;
+  int32 out_index = 2;
+  TxOutput output = 3;
+  bool spent = 4;
 }

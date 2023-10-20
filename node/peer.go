@@ -22,6 +22,8 @@ func newPeer(v *proto.Version) *peer {
 	}
 }
 
+// ---------------------------------------------------------------------------
+
 type peersMap struct {
 	peers map[client.Client]*peer
 	lock  sync.RWMutex
@@ -78,6 +80,7 @@ func (pm *peersMap) updateLastPingTime(c client.Client) {
 	pm.peers[c].lastPing = time.Now()
 }
 
+// ---------------------------------------------------------------------------
 type knownAddrs struct {
 	addrs map[string]int // [addr]connectAttempts
 	lock  sync.RWMutex

@@ -9,8 +9,11 @@ import (
 )
 
 func HashBlock(block *proto.Block) string {
-	// hash only block header
-	b, err := pb.Marshal(block.Header)
+	return HashHeader(block.Header)
+}
+
+func HashHeader(header *proto.Header) string {
+	b, err := pb.Marshal(header)
 	if err != nil {
 		panic(err)
 	}

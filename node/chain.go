@@ -1,6 +1,7 @@
 package node
 
 import (
+	"bytes"
 	"fmt"
 	"time"
 
@@ -40,13 +41,15 @@ func (l *HeadersList) Get(index int) (*proto.Header, error) {
 type Chain struct {
 	txStore    store.TxStorer
 	blockStore store.BlockStorer
+	utxoStore  store.UTXOStorer
 	headers    *HeadersList
 }
 
-func NewChain(txStore store.TxStorer, blockStore store.BlockStorer) *Chain {
+func NewChain(txStore store.TxStorer, blockStore store.BlockStorer, utxoStore store.UTXOStorer) *Chain {
 	chain := &Chain{
 		txStore:    txStore,
 		blockStore: blockStore,
+		utxoStore:  utxoStore,
 		headers:    NewHeadersList(),
 	}
 	chain.addBlock(genesisBlock())
@@ -74,13 +77,75 @@ func (c *Chain) addBlock(block *proto.Block) error {
 		if err := c.txStore.Put(tx); err != nil {
 			return err
 		}
+		if err := c.makeUTXOs(tx); err != nil {
+			return err
+		}
 	}
 	return c.blockStore.Put(block)
+}
+
+func (c *Chain) makeUTXOs(tx *proto.Transaction) error {
+	txHash := types.HashTransaction(tx)
+	for index, output := range tx.Outputs {
+		utxo := &proto.UTXO{
+			TxHash:   []byte(txHash),
+			OutIndex: int32(index),
+			Output:   output,
+			Spent:    false,
+		}
+		if err := c.utxoStore.Put(utxo); err != nil {
+			return err
+		}
+	}
+	for _, input := range tx.Inputs {
+		utxoKey := types.MakeUTXOKey(input.PrevTxHash, int(input.OutIndex))
+		utxo, err := c.utxoStore.Get(utxoKey)
+		if err != nil {
+			return err
+		}
+		utxo.Spent = true
+		if err := c.utxoStore.Put(utxo); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (c *Chain) ValidateBlock(b *proto.Block) error {
 	if !types.VerifyBlock(b) {
 		return fmt.Errorf("block is not valid")
+	}
+
+	currentBlock, err := c.GetBlockByHeight(c.Height())
+	if err != nil {
+		return err
+	}
+	if b.Header.Height != currentBlock.Header.Height+1 {
+		return fmt.Errorf(
+			"block height %d is not equal to current height %d + 1",
+			b.Header.Height,
+			currentBlock.Header.Height,
+		)
+	}
+	currentBlockHash := types.HashBlock(currentBlock)
+	if !bytes.Equal(b.Header.PrevBlockHash, []byte(currentBlockHash)) {
+		return fmt.Errorf(
+			"block prev hash %s is not equal to current hash %s",
+			b.Header.PrevBlockHash,
+			currentBlockHash,
+		)
+	}
+	for _, tx := range b.Transactions {
+		if err := ValidateTransaction(tx); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func ValidateTransaction(tx *proto.Transaction) error {
+	if !types.VerifyTransaction(tx) {
+		return fmt.Errorf("transaction is not valid")
 	}
 	return nil
 }
@@ -89,7 +154,20 @@ func (c *Chain) GetBlockByHeight(height int) (*proto.Block, error) {
 	if height > c.Height() {
 		return nil, fmt.Errorf("height %d is greater than chain height %d", height, c.Height())
 	}
-	return nil, nil // TODO: implement
+	header, err := c.headers.Get(height)
+	if err != nil {
+		return nil, err
+	}
+	hash := types.HashHeader(header)
+	block, err := c.blockStore.Get(hash)
+	if err != nil {
+		return nil, err
+	}
+	return block, nil
+}
+
+func (c *Chain) GetBlockByHash(hash string) (*proto.Block, error) {
+	return c.blockStore.Get(hash)
 }
 
 func genesisBlock() *proto.Block {
