@@ -9,11 +9,27 @@ import (
 )
 
 func transactionToHashable(tx *proto.Transaction) *proto.Transaction {
-	// hash transaction without signatures in inputs
-	for _, input := range tx.Inputs {
-		input.Signature = nil
+	// we need to copy all tx fields as they are the pointers
+	// and we don't want to change the original tx
+	// we copy all fields except signature
+	txNoSig := &proto.Transaction{
+		Inputs:  make([]*proto.TxInput, len(tx.Inputs)),
+		Outputs: make([]*proto.TxOutput, len(tx.Outputs)),
 	}
-	return tx
+	for i, input := range tx.Inputs {
+		txNoSig.Inputs[i] = &proto.TxInput{
+			PublicKey:  input.PublicKey,
+			PrevTxHash: input.PrevTxHash,
+			OutIndex:   input.OutIndex,
+		}
+	}
+	for i, output := range tx.Outputs {
+		txNoSig.Outputs[i] = &proto.TxOutput{
+			Value:   output.Value,
+			Address: output.Address,
+		}
+	}
+	return txNoSig
 }
 
 func HashTransaction(tx *proto.Transaction) string {
