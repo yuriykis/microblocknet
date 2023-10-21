@@ -3,6 +3,7 @@ package crypto
 import (
 	"crypto/ed25519"
 	"crypto/rand"
+	"encoding/hex"
 )
 
 const (
@@ -26,7 +27,7 @@ func (p *PrivateKey) Bytes() []byte {
 }
 
 func (p *PrivateKey) String() string {
-	return string(p.key)
+	return hex.EncodeToString(p.key)
 }
 
 func GeneratePrivateKey() *PrivateKey {
@@ -49,7 +50,11 @@ func PrivateKeyFromBytes(key []byte) *PrivateKey {
 }
 
 func PrivateKeyFromString(key string) *PrivateKey {
-	return PrivateKeyFromBytes([]byte(key))
+	k, err := hex.DecodeString(key)
+	if err != nil {
+		panic(err)
+	}
+	return PrivateKeyFromBytes(k)
 }
 
 func (p *PrivateKey) PublicKey() *PublicKey {
@@ -102,7 +107,7 @@ func (p *PublicKey) Bytes() []byte {
 }
 
 func (p *PublicKey) String() string {
-	return string(p.key)
+	return hex.EncodeToString(p.key)
 }
 
 type Signature struct {
@@ -127,7 +132,7 @@ func (s *Signature) Bytes() []byte {
 }
 
 func (s *Signature) String() string {
-	return string(s.value)
+	return hex.EncodeToString(s.value)
 }
 
 func (s *Signature) Verify(message string, pubKey *PublicKey) bool {
@@ -139,7 +144,7 @@ type Address struct {
 }
 
 func (a *Address) String() string {
-	return string(a.value)
+	return hex.EncodeToString(a.value)
 }
 
 func (a *Address) Bytes() []byte {

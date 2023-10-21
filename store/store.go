@@ -17,4 +17,5 @@ type BlockStorer interface {
 type UTXOStorer interface {
 	Put(utxo *proto.UTXO) error
 	Get(key string) (*proto.UTXO, error)
+	GetByAddress(address []byte) ([]*proto.UTXO, error)
 }

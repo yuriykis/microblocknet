@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"sync"
 
 	"github.com/yuriykis/microblocknet/proto"
@@ -38,4 +39,19 @@ func (m *MemoryUTXOStore) Get(key string) (*proto.UTXO, error) {
 		return nil, nil
 	}
 	return utxo, nil
+}
+
+func (m *MemoryUTXOStore) GetByAddress(address []byte) ([]*proto.UTXO, error) {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+
+	utxos := make([]*proto.UTXO, 0)
+
+	for _, utxo := range m.utxos {
+		if bytes.Equal(utxo.Output.Address, address) && !utxo.Spent {
+			utxos = append(utxos, utxo)
+		}
+	}
+
+	return utxos, nil
 }

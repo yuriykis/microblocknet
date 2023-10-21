@@ -7,7 +7,7 @@ run: build-binary
 	@DEBUG=true ./bin/$(BINARY_NAME)
 
 test:
-	@go test -v ./...
+	@go test -v ./... -count=1
 
 up:
 	@docker compose up

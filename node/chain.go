@@ -38,6 +38,8 @@ func (l *HeadersList) Get(index int) (*proto.Header, error) {
 
 // -----------------------------------------------------------------------------
 
+const godSeed = "41b84a2eff9a47393471748fbbdff9d20c14badab3d2de59fd8b5e98edd34d1c577c4c3515c6c19e5b9fdfba39528b1be755aae4d6a75fc851d3a17fbf51f1bc"
+
 type Chain struct {
 	txStore    store.TxStorer
 	blockStore store.BlockStorer
@@ -190,7 +192,7 @@ func (c *Chain) GetBlockByHash(hash string) (*proto.Block, error) {
 }
 
 func genesisBlock() *proto.Block {
-	privKey := crypto.GeneratePrivateKey()
+	privKey := crypto.PrivateKeyFromString(godSeed)
 
 	firstBlock := &proto.Block{
 		Header: &proto.Header{
