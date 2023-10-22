@@ -37,6 +37,10 @@ func (s *GRPCNodeServer) NewBlock(ctx context.Context, b *proto.Block) (*proto.B
 	return s.svc.NewBlock(ctx, b)
 }
 
+func (s *GRPCNodeServer) GetBlocks(ctx context.Context, v *proto.Version) (*proto.Blocks, error) {
+	return s.svc.GetBlocks(ctx, v)
+}
+
 func (s *GRPCNodeServer) Serve() error {
 	ln, err := net.Listen("tcp", s.listenAddr)
 	if err != nil {

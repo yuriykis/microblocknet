@@ -22,6 +22,7 @@ const (
 	Node_Handshake_FullMethodName      = "/Node/Handshake"
 	Node_NewTransaction_FullMethodName = "/Node/NewTransaction"
 	Node_NewBlock_FullMethodName       = "/Node/NewBlock"
+	Node_GetBlocks_FullMethodName      = "/Node/GetBlocks"
 )
 
 // NodeClient is the client API for Node service.
@@ -31,6 +32,7 @@ type NodeClient interface {
 	Handshake(ctx context.Context, in *Version, opts ...grpc.CallOption) (*Version, error)
 	NewTransaction(ctx context.Context, in *Transaction, opts ...grpc.CallOption) (*Transaction, error)
 	NewBlock(ctx context.Context, in *Block, opts ...grpc.CallOption) (*Block, error)
+	GetBlocks(ctx context.Context, in *Version, opts ...grpc.CallOption) (*Blocks, error)
 }
 
 type nodeClient struct {
@@ -68,6 +70,15 @@ func (c *nodeClient) NewBlock(ctx context.Context, in *Block, opts ...grpc.CallO
 	return out, nil
 }
 
+func (c *nodeClient) GetBlocks(ctx context.Context, in *Version, opts ...grpc.CallOption) (*Blocks, error) {
+	out := new(Blocks)
+	err := c.cc.Invoke(ctx, Node_GetBlocks_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // NodeServer is the server API for Node service.
 // All implementations must embed UnimplementedNodeServer
 // for forward compatibility
@@ -75,6 +86,7 @@ type NodeServer interface {
 	Handshake(context.Context, *Version) (*Version, error)
 	NewTransaction(context.Context, *Transaction) (*Transaction, error)
 	NewBlock(context.Context, *Block) (*Block, error)
+	GetBlocks(context.Context, *Version) (*Blocks, error)
 	mustEmbedUnimplementedNodeServer()
 }
 
@@ -90,6 +102,9 @@ func (UnimplementedNodeServer) NewTransaction(context.Context, *Transaction) (*T
 }
 func (UnimplementedNodeServer) NewBlock(context.Context, *Block) (*Block, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method NewBlock not implemented")
+}
+func (UnimplementedNodeServer) GetBlocks(context.Context, *Version) (*Blocks, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetBlocks not implemented")
 }
 func (UnimplementedNodeServer) mustEmbedUnimplementedNodeServer() {}
 
@@ -158,6 +173,24 @@ func _Node_NewBlock_Handler(srv interface{}, ctx context.Context, dec func(inter
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Node_GetBlocks_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Version)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NodeServer).GetBlocks(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Node_GetBlocks_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NodeServer).GetBlocks(ctx, req.(*Version))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Node_ServiceDesc is the grpc.ServiceDesc for Node service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -176,6 +209,10 @@ var Node_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "NewBlock",
 			Handler:    _Node_NewBlock_Handler,
+		},
+		{
+			MethodName: "GetBlocks",
+			Handler:    _Node_GetBlocks_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

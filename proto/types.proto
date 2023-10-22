@@ -6,6 +6,7 @@ service Node {
   rpc Handshake(Version) returns (Version);
   rpc NewTransaction(Transaction) returns (Transaction);
   rpc NewBlock(Block) returns (Block);
+  rpc GetBlocks(Version) returns (Blocks);
 }
 
 message Version {
@@ -21,6 +22,10 @@ message Block {
   repeated Transaction transactions = 2;
   bytes public_key = 3;
   bytes signature = 4;
+}
+
+message Blocks {
+  repeated Block blocks = 1;
 }
 
 message Header {

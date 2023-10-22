@@ -39,3 +39,7 @@ func (c *GRPCClient) NewTransaction(ctx context.Context, t *proto.Transaction) (
 func (c *GRPCClient) NewBlock(ctx context.Context, b *proto.Block) (*proto.Block, error) {
 	return c.client.NewBlock(ctx, b)
 }
+
+func (c *GRPCClient) GetBlocks(ctx context.Context, v *proto.Version) (*proto.Blocks, error) {
+	return c.client.GetBlocks(ctx, v)
+}
