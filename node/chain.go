@@ -156,6 +156,9 @@ func (c *Chain) ValidateTransaction(tx *proto.Transaction) error {
 		if err != nil {
 			return err
 		}
+		if utxo == nil {
+			return fmt.Errorf("utxo %s not found", utxoKey)
+		}
 		if utxo.Spent {
 			return fmt.Errorf("utxo %s is already spent", utxoKey)
 		}

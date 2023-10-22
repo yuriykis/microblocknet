@@ -10,6 +10,8 @@ import (
 	pb "google.golang.org/protobuf/proto"
 )
 
+const blockHashDifficulty = 1
+
 func HashBlock(block *proto.Block) string {
 	return HashHeader(block.Header)
 }
@@ -46,6 +48,11 @@ func VerifyBlock(block *proto.Block) bool {
 	sig := crypto.SignatureFromBytes(block.Signature)
 	pubKey := crypto.PublicKeyFromBytes(block.PublicKey)
 	return pubKey.Verify(HashBlock(block), sig)
+}
+
+func VerifyBlockHash(block *proto.Block) bool {
+	hash := HashBlock(block)
+	return hash[:blockHashDifficulty] == string(bytes.Repeat([]byte{0}, blockHashDifficulty))
 }
 
 func VerifyMerkleTree(block *proto.Block) bool {

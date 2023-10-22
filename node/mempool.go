@@ -33,6 +33,19 @@ func (m *Mempool) Contains(tx *proto.Transaction) bool {
 	return ok
 }
 
+func (m *Mempool) Clear() {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	m.txs = make(map[string]*proto.Transaction)
+}
+
+func (m *Mempool) Remove(tx *proto.Transaction) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	hashTx := string(types.HashTransaction(tx))
+	delete(m.txs, hashTx)
+}
+
 func (m *Mempool) list() []*proto.Transaction {
 	m.lock.RLock()
 	defer m.lock.RUnlock()

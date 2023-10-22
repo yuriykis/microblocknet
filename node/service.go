@@ -10,15 +10,18 @@ import (
 	"github.com/yuriykis/microblocknet/node/client"
 	"github.com/yuriykis/microblocknet/proto"
 	"github.com/yuriykis/microblocknet/store"
+	"github.com/yuriykis/microblocknet/types"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	gprcPeer "google.golang.org/grpc/peer"
 )
 
 const (
-	connectInterval    = 10 * time.Second
+	connectInterval    = 5 * time.Second
 	pingInterval       = 20 * time.Second
 	maxConnectAttempts = 100
+	miningInterval     = 5 * time.Second
+	maxMiningDuration  = 10 * time.Second
 )
 
 type Node interface {
@@ -54,6 +57,8 @@ type NetNode struct {
 
 	mempool *Mempool
 	chain   *Chain
+
+	isMiner bool
 	quit
 }
 
@@ -86,7 +91,7 @@ func New(listenAddress string) *NetNode {
 	}
 }
 
-func (n *NetNode) Start(listenAddr string, bootstrapNodes []string, server Server, isValidator bool) error {
+func (n *NetNode) Start(listenAddr string, bootstrapNodes []string, server Server, isMiner bool) error {
 
 	go n.tryConnect(n.tryConnectQuitCh)
 	go n.ping(n.pingQuitCh)
@@ -100,23 +105,106 @@ func (n *NetNode) Start(listenAddr string, bootstrapNodes []string, server Serve
 		}()
 	}
 
-	if isValidator {
+	if isMiner {
+		n.isMiner = isMiner
 		n.PrivateKey = crypto.GeneratePrivateKey()
-		go n.validatorLoop()
+		go n.minerLoop()
 	}
+
 	return server.Serve()
 }
 
-func (n *NetNode) validatorLoop() {
-	n.logger.Infof("NetNode: %s, starting validatorLoop\n", n)
+func (n *NetNode) addMempoolToBlock(block *proto.Block) {
+	for _, tx := range n.mempool.list() {
+		block.Transactions = append(block.Transactions, tx)
+	}
+
+	// probably we should clear mempool after the block is mined
+	n.mempool.Clear()
+}
+
+func (n *NetNode) mineBlock(newBlockCh chan<- *proto.Block, stopMineBlockCh <-chan struct{}) {
+	n.logger.Infof("NetNode: %s, starting mining block\n", n)
+
+	lastBlock, err := n.chain.GetBlockByHeight(n.chain.Height())
+	if err != nil {
+		n.logger.Errorf("NetNode: %s, failed to get last block: %v", n, err)
+		return
+	}
+
+	nonce := uint64(0)
+	block := &proto.Block{
+		Header: &proto.Header{
+			PrevBlockHash: []byte(types.HashBlock(lastBlock)), // TODO: check if this is correct
+			Timestamp:     time.Now().Unix(),
+			Height:        lastBlock.Header.Height + 1,
+		},
+	}
+	n.addMempoolToBlock(block)
+mine:
 	for {
-		n.logger.Infof("NetNode: %s, creating block\n", n)
-		time.Sleep(10 * time.Second)
+		select {
+		case <-stopMineBlockCh:
+			n.logger.Infof("NetNode: %s, stopping minerLoop\n", n)
+			return
+		default:
+			if block.GetTransactions() == nil {
+				n.logger.Infof("NetNode: %s, no transactions in mempool, block will not be mined\n", n)
+				break mine
+			}
+			n.logger.Infof("NetNode: %s, mining block\n", n)
+			block.Header.Nonce = nonce
+			blockHash := types.HashBlock(block)
+			fmt.Printf("blockHash: %s\n", blockHash)
+			if types.VerifyBlockHash(block) {
+				n.logger.Infof("NetNode: %s, mined block: %s\n", n, blockHash)
+				newBlockCh <- block
+				return
+			}
+			nonce++
+		}
+	}
+	newBlockCh <- nil
+}
+
+func (n *NetNode) minerLoop() {
+	for {
+		n.logger.Infof("NetNode: %s, starting minerLoop\n", n)
+		time.Sleep(miningInterval)
+		newBlockCh := make(chan *proto.Block)
+		stopMineBlockCh := make(chan struct{})
+
+		go n.mineBlock(newBlockCh, stopMineBlockCh)
+		ticker := time.NewTicker(maxMiningDuration)
+
+	mining:
+		for {
+			select {
+			case <-ticker.C:
+				n.logger.Infof("NetNode: %s, stopping minerLoop\n", n)
+				close(stopMineBlockCh)
+				break mining
+			case block := <-newBlockCh:
+				if block == nil {
+					n.logger.Infof("NetNode: %s, block is nil, will not be added to blockchain\n", n)
+					break mining
+				}
+				block.PublicKey = n.PrivateKey.PublicKey().Bytes()
+				types.SignBlock(block, n.PrivateKey)
+
+				n.chain.AddBlock(block)
+				n.logger.Infof("NetNode: %s, broadcast block: %s\n", n, types.HashBlock(block))
+				n.broadcast(block)
+				break mining
+			default:
+				continue
+			}
+		}
 	}
 }
 
 func (n *NetNode) showNodeInfo(quitCh chan struct{}) {
-	n.logger.Infof("NetNode: %s, starting showPeers\n", n)
+	//n.logger.Infof("NetNode: %s, starting showPeers\n", n)
 	for {
 		select {
 		case <-quitCh:
@@ -127,9 +215,9 @@ func (n *NetNode) showNodeInfo(quitCh chan struct{}) {
 			//n.logger.Infof("Node %s, knownAddrs: %v", n, n.knownAddrs.list())
 			// n.logger.Infof("Node %s, mempool: %v", n, n.mempool.list())
 			n.logger.Infof("Node %s, blockchain height: %d", n, n.chain.Height())
-			n.logger.Infof("Node %s, blocks in blockchain: %v", n, n.chain.blockStore.List())
-			n.logger.Infof("Node %s, transactions in blockchain: %v", n, n.chain.txStore.List())
-			n.logger.Infof("Node %s, utxos in blockchain: %v", n, n.chain.utxoStore.List())
+			n.logger.Infof("Node %s, blocks in blockchain: %v", n, len(n.chain.blockStore.List()))
+			n.logger.Infof("Node %s, transactions in blockchain: %v", n, len(n.chain.txStore.List()))
+			n.logger.Infof("Node %s, utxos in blockchain: %v", n, len(n.chain.utxoStore.List()))
 
 			time.Sleep(3 * time.Second)
 		}
@@ -154,7 +242,7 @@ func (n *NetNode) Handshake(
 		return nil, err
 	}
 	n.addPeer(c, v)
-	n.logger.Infof("NetNode: %s, sending handshake to %s", n, v.ListenAddress)
+	//n.logger.Infof("NetNode: %s, sending handshake to %s", n, v.ListenAddress)
 	return n.Version(), nil
 }
 
@@ -181,7 +269,29 @@ func (n *NetNode) NewTransaction(
 }
 
 func (n *NetNode) NewBlock(ctx context.Context, b *proto.Block) (*proto.Block, error) {
-	return &proto.Block{}, nil
+	peer, ok := gprcPeer.FromContext(ctx)
+	if !ok {
+		return nil, fmt.Errorf("NetNode: %s, failed to get peer from context", n)
+	}
+	n.logger.Infof("NetNode: %s, received block from %s", n, peer.Addr.String())
+
+	if err := n.chain.AddBlock(b); err != nil {
+		return nil, err
+	}
+	n.logger.Infof("NetNode: %s, block with height %d added to blockchain", n, b.Header.Height)
+
+	n.ClearMempool(b)
+
+	// check how to broadcast block when peer is not available
+	go n.broadcast(b)
+
+	return b, nil
+}
+
+func (n *NetNode) ClearMempool(b *proto.Block) {
+	for _, tx := range b.Transactions {
+		n.mempool.Remove(tx)
+	}
 }
 
 func (n *NetNode) GetBlocks(ctx context.Context, v *proto.Version) (*proto.Blocks, error) {
@@ -194,6 +304,14 @@ func (n *NetNode) GetBlocks(ctx context.Context, v *proto.Version) (*proto.Block
 		blocks.Blocks = append(blocks.Blocks, block)
 	}
 	return blocks, nil
+}
+
+func (n *NetNode) GetBlockByHeight(height int) (*proto.Block, error) {
+	return n.chain.GetBlockByHeight(height)
+}
+
+func (n *NetNode) GetUTXOsByAddress(address []byte) ([]*proto.UTXO, error) {
+	return n.chain.utxoStore.GetByAddress(address)
 }
 
 func (n *NetNode) Version() *proto.Version {
@@ -294,11 +412,11 @@ func (n *NetNode) BootstrapNetwork(addrs []string) error {
 
 // TryConnect tries to connect to known addresses
 func (n *NetNode) tryConnect(quitCh chan struct{}) {
-	n.logger.Infof("NetNode: %s, starting tryConnect\n", n)
+	//n.logger.Infof("NetNode: %s, starting tryConnect\n", n)
 	for {
 		select {
 		case <-quitCh:
-			n.logger.Infof("NetNode: %s, stopping tryConnect\n", n)
+			//n.logger.Infof("NetNode: %s, stopping tryConnect\n", n)
 			return
 		default:
 			updatedKnownAddrs := make(map[string]int, 0)
@@ -343,22 +461,23 @@ func (n *NetNode) tryConnect(quitCh chan struct{}) {
 // Ping pings all known peers, if peer is not available,
 // it will be removed from the peers list and added to the known addresses list
 func (n *NetNode) ping(quitCh chan struct{}) {
-	n.logger.Infof("NetNode: %s, starting ping\n", n)
+	//n.logger.Infof("NetNode: %s, starting ping\n", n)
 	for {
 		select {
 		case <-quitCh:
-			n.logger.Infof("NetNode: %s, stopping ping\n", n)
+			//n.logger.Infof("NetNode: %s, stopping ping\n", n)
 			return
 		default:
 			for c, p := range n.peers.peersForPing() {
 				_, err := n.handshakeClient(c)
 				if err != nil {
-					n.logger.Errorf("NetNode: %s, failed to ping %s: %v\n", n, c, err)
+					//n.logger.Errorf("NetNode: %s, failed to ping %s: %v\n", n, c, err)
 					n.knownAddrs.append(p.ListenAddress, 0)
 					n.peers.removePeer(c)
 					continue
 				}
 				n.peers.updateLastPingTime(c)
+				n.syncBlockchain(c)
 			}
 			time.Sleep(pingInterval)
 		}
