@@ -6,6 +6,7 @@ import (
 	"github.com/yuriykis/microblocknet/proto"
 )
 
+// TODO: Create a separate interface for the server
 type Server interface {
 	Handshake(ctx context.Context, v *proto.Version) (*proto.Version, error)
 	NewTransaction(ctx context.Context, t *proto.Transaction) (*proto.Transaction, error)
