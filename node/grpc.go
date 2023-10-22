@@ -2,26 +2,25 @@ package node
 
 import (
 	"context"
-	"fmt"
-	"log"
-	"net"
 
 	"github.com/yuriykis/microblocknet/proto"
-	"google.golang.org/grpc"
 )
+
+type ChainServer interface {
+	Handshake(ctx context.Context, v *proto.Version) (*proto.Version, error)
+	NewTransaction(ctx context.Context, t *proto.Transaction) (*proto.Transaction, error)
+	NewBlock(ctx context.Context, b *proto.Block) (*proto.Block, error)
+	GetBlocks(ctx context.Context, v *proto.Version) (*proto.Blocks, error)
+}
 
 type GRPCNodeServer struct {
 	proto.UnimplementedNodeServer
-	svc        Node
-	grpcServer *grpc.Server
-	listenAddr string
+	svc Node
 }
 
-func NewGRPCNodeServer(svc Node, grpcServer *grpc.Server, listenAddr string) *GRPCNodeServer {
+func NewGRPCNodeServer(svc Node) *GRPCNodeServer {
 	return &GRPCNodeServer{
-		svc:        svc,
-		grpcServer: grpcServer,
-		listenAddr: listenAddr,
+		svc: svc,
 	}
 }
 
@@ -39,31 +38,4 @@ func (s *GRPCNodeServer) NewBlock(ctx context.Context, b *proto.Block) (*proto.B
 
 func (s *GRPCNodeServer) GetBlocks(ctx context.Context, v *proto.Version) (*proto.Blocks, error) {
 	return s.svc.GetBlocks(ctx, v)
-}
-
-func (s *GRPCNodeServer) Serve() error {
-	ln, err := net.Listen("tcp", s.listenAddr)
-	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
-	}
-	defer ln.Close()
-	return s.grpcServer.Serve(ln)
-}
-
-func (s *GRPCNodeServer) Close() error {
-	s.grpcServer.GracefulStop()
-	return nil
-}
-
-func MakeGRPCTransport(listenAddr string, svc Node) *GRPCNodeServer {
-	fmt.Printf("Node %s, starting GRPC transport\n", listenAddr)
-	var (
-		opt        = []grpc.ServerOption{}
-		grpcServer = grpc.NewServer(opt...)
-	)
-
-	grpcNodeServer := NewGRPCNodeServer(svc, grpcServer, listenAddr)
-	proto.RegisterNodeServer(grpcServer, grpcNodeServer)
-
-	return grpcNodeServer
 }
