@@ -48,19 +48,19 @@ func debug() {
 	var (
 		n1 = node.New(":3000")
 		n2 = node.New(":3001")
-		n3 = node.New(":3002")
-		n4 = node.New(":3003")
+		// n3 = node.New(":3002")
+		// n4 = node.New(":3003")
 
 		grpcServer1 = node.MakeGRPCTransport(n1.ListenAddress, n1)
 		grpcServer2 = node.MakeGRPCTransport(n2.ListenAddress, n2)
-		grpcServer3 = node.MakeGRPCTransport(n3.ListenAddress, n3)
-		grpcServer4 = node.MakeGRPCTransport(n4.ListenAddress, n4)
+		// grpcServer3 = node.MakeGRPCTransport(n3.ListenAddress, n3)
+		// grpcServer4 = node.MakeGRPCTransport(n4.ListenAddress, n4)
 	)
 
 	go n1.Start(n1.ListenAddress, []string{}, grpcServer1, true)
 	go n2.Start(n2.ListenAddress, []string{":3000"}, grpcServer2, false)
-	go n3.Start(n3.ListenAddress, []string{":3000"}, grpcServer3, false)
-	go n4.Start(n4.ListenAddress, []string{":3001"}, grpcServer4, false)
+	// go n3.Start(n3.ListenAddress, []string{":3000"}, grpcServer3, false)
+	// go n4.Start(n4.ListenAddress, []string{":3001"}, grpcServer4, false)
 
 	go sendTransaction(n1, 5)
 

@@ -38,3 +38,14 @@ func (m *MemoryBlockStore) Get(blockHash string) (*proto.Block, error) {
 	}
 	return block, nil
 }
+
+func (m *MemoryBlockStore) List() []*proto.Block {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+
+	blocks := make([]*proto.Block, 0)
+	for _, block := range m.blocks {
+		blocks = append(blocks, block)
+	}
+	return blocks
+}

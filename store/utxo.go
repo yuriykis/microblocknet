@@ -41,6 +41,19 @@ func (m *MemoryUTXOStore) Get(key string) (*proto.UTXO, error) {
 	return utxo, nil
 }
 
+func (m *MemoryUTXOStore) List() []*proto.UTXO {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+
+	utxos := make([]*proto.UTXO, 0)
+
+	for _, utxo := range m.utxos {
+		utxos = append(utxos, utxo)
+	}
+
+	return utxos
+}
+
 func (m *MemoryUTXOStore) GetByAddress(address []byte) ([]*proto.UTXO, error) {
 	m.lock.RLock()
 	defer m.lock.RUnlock()

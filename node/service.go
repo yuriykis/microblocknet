@@ -9,6 +9,7 @@ import (
 	"github.com/yuriykis/microblocknet/crypto"
 	"github.com/yuriykis/microblocknet/node/client"
 	"github.com/yuriykis/microblocknet/proto"
+	"github.com/yuriykis/microblocknet/store"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	gprcPeer "google.golang.org/grpc/peer"
@@ -24,6 +25,7 @@ type Node interface {
 	Handshake(ctx context.Context, v *proto.Version) (*proto.Version, error)
 	NewTransaction(ctx context.Context, t *proto.Transaction) (*proto.Transaction, error)
 	NewBlock(ctx context.Context, b *proto.Block) (*proto.Block, error)
+	GetBlocks(ctx context.Context, v *proto.Version) (*proto.Blocks, error)
 }
 
 type quit struct {
@@ -51,20 +53,31 @@ type NetNode struct {
 	knownAddrs *knownAddrs
 
 	mempool *Mempool
+	chain   *Chain
 	quit
 }
 
 func New(listenAddress string) *NetNode {
+	var (
+		txStore    = store.NewMemoryTxStore()
+		blockStore = store.NewMemoryBlockStore()
+		utxoStore  = store.NewMemoryUTXOStore()
+	)
+	chain := NewChain(txStore, blockStore, utxoStore)
+
 	return &NetNode{
 		ServerConfig: ServerConfig{
 			Version:       "0.0.1",
 			ListenAddress: listenAddress,
 			PrivateKey:    nil,
 		},
+
 		peers:      NewPeersMap(),
 		logger:     makeLogger(),
 		knownAddrs: newKnownAddrs(),
 		mempool:    NewMempool(),
+		chain:      chain,
+
 		quit: quit{
 			tryConnectQuitCh:   make(chan struct{}),
 			pingQuitCh:         make(chan struct{}),
@@ -110,9 +123,14 @@ func (n *NetNode) showNodeInfo(quitCh chan struct{}) {
 			n.logger.Infof("NetNode: %s, stopping showPeers", n)
 			return
 		default:
-			n.logger.Infof("Node %s, peers: %v", n, n.PeersAddrs())
-			n.logger.Infof("Node %s, knownAddrs: %v", n, n.knownAddrs.list())
-			n.logger.Infof("Node %s, mempool: %v", n, n.mempool.list())
+			//n.logger.Infof("Node %s, peers: %v", n, n.PeersAddrs())
+			//n.logger.Infof("Node %s, knownAddrs: %v", n, n.knownAddrs.list())
+			// n.logger.Infof("Node %s, mempool: %v", n, n.mempool.list())
+			n.logger.Infof("Node %s, blockchain height: %d", n, n.chain.Height())
+			n.logger.Infof("Node %s, blocks in blockchain: %v", n, n.chain.blockStore.List())
+			n.logger.Infof("Node %s, transactions in blockchain: %v", n, n.chain.txStore.List())
+			n.logger.Infof("Node %s, utxos in blockchain: %v", n, n.chain.utxoStore.List())
+
 			time.Sleep(3 * time.Second)
 		}
 	}
@@ -166,12 +184,40 @@ func (n *NetNode) NewBlock(ctx context.Context, b *proto.Block) (*proto.Block, e
 	return &proto.Block{}, nil
 }
 
+func (n *NetNode) GetBlocks(ctx context.Context, v *proto.Version) (*proto.Blocks, error) {
+	blocks := &proto.Blocks{}
+	for i := 0; i < n.chain.Height(); i++ {
+		block, err := n.chain.GetBlockByHeight(i)
+		if err != nil {
+			return nil, err
+		}
+		blocks.Blocks = append(blocks.Blocks, block)
+	}
+	return blocks, nil
+}
+
 func (n *NetNode) Version() *proto.Version {
 	return &proto.Version{
 		Version:       "0.0.1",
 		ListenAddress: n.ListenAddress,
 		Peers:         n.PeersAddrs(),
 	}
+}
+
+func (n *NetNode) processBlocks(blocks *proto.Blocks) error {
+	for _, block := range blocks.Blocks {
+		if err := n.chain.AddBlock(block); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func (n *NetNode) syncBlockchain(c client.Client) error {
+	blocks, err := c.GetBlocks(context.Background(), n.Version())
+	if err != nil {
+		return err
+	}
+	return n.processBlocks(blocks)
 }
 
 func (n *NetNode) addPeer(c client.Client, v *proto.Version) {
@@ -286,6 +332,7 @@ func (n *NetNode) tryConnect(quitCh chan struct{}) {
 					continue
 				}
 				n.addPeer(client, version)
+				n.syncBlockchain(client)
 			}
 			n.knownAddrs.update(updatedKnownAddrs)
 			time.Sleep(connectInterval)

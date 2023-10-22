@@ -40,6 +40,16 @@ func (m *MemoryTxStore) Get(txHash string) (*proto.Transaction, error) {
 	return tx, nil
 }
 
+func (m *MemoryTxStore) List() []*proto.Transaction {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+	txs := make([]*proto.Transaction, 0)
+	for _, tx := range m.txs {
+		txs = append(txs, tx)
+	}
+	return txs
+}
+
 // -----------------------------------------------------------------------------
 // MongoTxStore
 
