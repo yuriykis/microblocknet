@@ -1,11 +1,11 @@
-package node
+package service
 
 import (
 	"sync"
 	"time"
 
-	"github.com/yuriykis/microblocknet/node/node/client"
 	"github.com/yuriykis/microblocknet/node/proto"
+	"github.com/yuriykis/microblocknet/node/service/client"
 )
 
 const checkConnectInterval = 50 * time.Second

@@ -1,4 +1,4 @@
-package node
+package service
 
 import (
 	"context"
@@ -9,6 +9,11 @@ import (
 	"github.com/yuriykis/microblocknet/node/proto"
 	"google.golang.org/grpc"
 )
+
+type TransportServer interface {
+	Start() error
+	Stop() error
+}
 
 type NodeServer interface {
 	Handshake(ctx context.Context, v *proto.Version) (*proto.Version, error)

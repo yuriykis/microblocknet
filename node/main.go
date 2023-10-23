@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/yuriykis/microblocknet/node/crypto"
-	"github.com/yuriykis/microblocknet/node/node"
 	"github.com/yuriykis/microblocknet/node/proto"
+	"github.com/yuriykis/microblocknet/node/service"
 	"github.com/yuriykis/microblocknet/node/types"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -39,7 +39,7 @@ func main() {
 		bootstrapNodes = strings.Split(bootstrapNodesVar, ",")
 	}
 
-	n := node.New(listenAddr)
+	n := service.New(listenAddr)
 
 	log.Fatal(n.Start(bootstrapNodes, false))
 }
@@ -48,10 +48,10 @@ func main() {
 func debug() {
 
 	var (
-		n1 = node.New(":3000")
-		n2 = node.New(":3001")
-		n3 = node.New(":3002")
-		n4 = node.New(":3003")
+		n1 = service.New(":3000")
+		n2 = service.New(":3001")
+		n3 = service.New(":3002")
+		n4 = service.New(":3003")
 	)
 
 	go n1.Start([]string{}, true)
@@ -68,17 +68,17 @@ func debug() {
 	select {}
 }
 
-func stop(n *node.NetNode, duration time.Duration) {
+func stop(n service.Service, duration time.Duration) {
 	time.Sleep(duration * time.Second)
 	n.Stop()
 }
 
-func sendTransaction(n *node.NetNode, duration time.Duration, height int, currentValue int64) {
+func sendTransaction(n service.Service, duration time.Duration, height int, currentValue int64) {
 	time.Sleep(duration * time.Second)
-	makeTransaction(n.ListenAddress, n, height, currentValue)
+	makeTransaction(":3000", n, height, currentValue)
 }
 
-func makeTransaction(endpoint string, n *node.NetNode, height int, currentValue int64) {
+func makeTransaction(endpoint string, n service.Service, height int, currentValue int64) {
 	conn, err := grpc.Dial(
 		endpoint,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),

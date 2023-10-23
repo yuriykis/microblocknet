@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/yuriykis/microblocknet/node/crypto"
-	"github.com/yuriykis/microblocknet/node/node"
 	"github.com/yuriykis/microblocknet/node/proto"
+	"github.com/yuriykis/microblocknet/node/service"
 	"github.com/yuriykis/microblocknet/node/types"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -24,12 +24,12 @@ func main() {
 	select {}
 }
 
-func sendTransaction(n *node.NetNode, duration time.Duration, height int, currentValue int64) {
+func sendTransaction(n service.Service, duration time.Duration, height int, currentValue int64) {
 	time.Sleep(duration * time.Second)
-	makeTransaction(n.ListenAddress, n, height, currentValue)
+	makeTransaction(":3000", n, height, currentValue)
 }
 
-func makeTransaction(endpoint string, n *node.NetNode, height int, currentValue int64) {
+func makeTransaction(endpoint string, n service.Service, height int, currentValue int64) {
 	conn, err := grpc.Dial(
 		endpoint,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
