@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+option go_package = "github.com/yuriykis/microblocknet/proto";
+
+service Node {
+  rpc Handshake(Version) returns (Version);
+  rpc NewTransaction(Transaction) returns (Transaction);
+  rpc NewBlock(Block) returns (Block);
+  rpc GetBlocks(Version) returns (Blocks);
+}
+
+message Version {
+  string version = 1;
+  int32 height = 2;
+  string listen_address = 3;
+  repeated string peers = 4;
+}
+
+
+message Block {
+  Header header = 1;
+  repeated Transaction transactions = 2;
+  bytes public_key = 3;
+  bytes signature = 4;
+}
+
+message Blocks {
+  repeated Block blocks = 1;
+}
+
+message Header {
+  int32 version = 1;
+  int32 height = 2;
+  bytes prev_block_hash = 3;
+  bytes merkle_root = 4;
+  int64 timestamp = 5;
+  bytes hash = 6;
+  uint64 nonce = 7;
+}
+
+message TxInput {
+  int32 out_index = 1;
+  bytes public_key = 2;
+  bytes signature = 3;
+  bytes prev_tx_hash = 4;
+}
+
+message TxOutput {
+  int64 value = 1;
+  bytes address = 2;
+}
+
+message Transaction {
+  repeated TxInput inputs = 1;
+  repeated TxOutput outputs = 2;
+}
+
+message UTXO {
+  bytes tx_hash = 1;
+  int32 out_index = 2;
+  TxOutput output = 3;
+  bool spent = 4;
+}
