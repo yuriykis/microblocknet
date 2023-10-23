@@ -3,7 +3,7 @@ version: "3"
 services:
   node1:
     build:
-      context: .
+      context: ./node
       dockerfile: Dockerfile
     ports:
       - "3000:3000"
@@ -12,7 +12,7 @@ services:
   
   node2:
     build:
-      context: .
+      context: ./node
       dockerfile: Dockerfile
     ports:
       - "3001:3001"
@@ -22,7 +22,7 @@ services:
 
   node3:
     build:
-      context: .
+      context: ./node
       dockerfile: Dockerfile
     ports:
       - "3002:3002"
