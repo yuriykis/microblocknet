@@ -93,9 +93,10 @@ func New(listenAddress string) *NetNode {
 
 func (n *NetNode) Start(listenAddr string, bootstrapNodes []string, server Server, isMiner bool) error {
 
-	go n.tryConnect(n.tryConnectQuitCh)
-	go n.ping(n.pingQuitCh)
-	go n.showNodeInfo(n.showNodeInfoQuitCh)
+	// TODO: adjust logger itself to show specific info, eg. node info, blockchain info, etc.
+	go n.tryConnect(n.tryConnectQuitCh, false)
+	go n.ping(n.pingQuitCh, false)
+	go n.showNodeInfo(n.showNodeInfoQuitCh, false, true)
 
 	if len(bootstrapNodes) > 0 {
 		go func() {
@@ -203,22 +204,29 @@ func (n *NetNode) minerLoop() {
 	}
 }
 
-func (n *NetNode) showNodeInfo(quitCh chan struct{}) {
-	//n.logger.Infof("NetNode: %s, starting showPeers\n", n)
+func (n *NetNode) showNodeInfo(quitCh chan struct{}, netLogging bool, blockchainLogging bool) {
+	if netLogging || blockchainLogging {
+		n.logger.Infof("NetNode: %s, starting showPeers\n", n)
+	}
 	for {
 		select {
 		case <-quitCh:
-			n.logger.Infof("NetNode: %s, stopping showPeers", n)
+			if netLogging || blockchainLogging {
+				n.logger.Infof("NetNode: %s, stopping showPeers", n)
+			}
 			return
 		default:
-			//n.logger.Infof("Node %s, peers: %v", n, n.PeersAddrs())
-			//n.logger.Infof("Node %s, knownAddrs: %v", n, n.knownAddrs.list())
-			// n.logger.Infof("Node %s, mempool: %v", n, n.mempool.list())
-			n.logger.Infof("Node %s, blockchain height: %d", n, n.chain.Height())
-			n.logger.Infof("Node %s, blocks in blockchain: %v", n, len(n.chain.blockStore.List()))
-			n.logger.Infof("Node %s, transactions in blockchain: %v", n, len(n.chain.txStore.List()))
-			n.logger.Infof("Node %s, utxos in blockchain: %v", n, len(n.chain.utxoStore.List()))
-
+			if netLogging {
+				n.logger.Infof("Node %s, peers: %v", n, n.PeersAddrs())
+				n.logger.Infof("Node %s, knownAddrs: %v", n, n.knownAddrs.list())
+				n.logger.Infof("Node %s, mempool: %v", n, n.mempool.list())
+			}
+			if blockchainLogging {
+				n.logger.Infof("Node %s, blockchain height: %d", n, n.chain.Height())
+				n.logger.Infof("Node %s, blocks in blockchain: %v", n, len(n.chain.blockStore.List()))
+				n.logger.Infof("Node %s, transactions in blockchain: %v", n, len(n.chain.txStore.List()))
+				n.logger.Infof("Node %s, utxos in blockchain: %v", n, len(n.chain.utxoStore.List()))
+			}
 			time.Sleep(3 * time.Second)
 		}
 	}
@@ -242,7 +250,7 @@ func (n *NetNode) Handshake(
 		return nil, err
 	}
 	n.addPeer(c, v)
-	//n.logger.Infof("NetNode: %s, sending handshake to %s", n, v.ListenAddress)
+	n.logger.Infof("NetNode: %s, sending handshake to %s", n, v.ListenAddress)
 	return n.Version(), nil
 }
 
@@ -411,12 +419,16 @@ func (n *NetNode) BootstrapNetwork(addrs []string) error {
 }
 
 // TryConnect tries to connect to known addresses
-func (n *NetNode) tryConnect(quitCh chan struct{}) {
-	//n.logger.Infof("NetNode: %s, starting tryConnect\n", n)
+func (n *NetNode) tryConnect(quitCh chan struct{}, logging bool) {
+	if logging {
+		n.logger.Infof("NetNode: %s, starting tryConnect\n", n)
+	}
 	for {
 		select {
 		case <-quitCh:
-			//n.logger.Infof("NetNode: %s, stopping tryConnect\n", n)
+			if logging {
+				n.logger.Infof("NetNode: %s, stopping tryConnect\n", n)
+			}
 			return
 		default:
 			updatedKnownAddrs := make(map[string]int, 0)
@@ -439,8 +451,9 @@ func (n *NetNode) tryConnect(quitCh chan struct{}) {
 							err,
 						)
 					}
-					n.logger.Errorf(errMsg)
-
+					if logging {
+						n.logger.Errorf(errMsg)
+					}
 					// if the connection attemps is less than maxConnectAttempts, we will try to connect again
 					// otherwise we will remove the address from the known addresses list
 					// by not adding it to the updatedKnownAddrs map
@@ -460,18 +473,24 @@ func (n *NetNode) tryConnect(quitCh chan struct{}) {
 
 // Ping pings all known peers, if peer is not available,
 // it will be removed from the peers list and added to the known addresses list
-func (n *NetNode) ping(quitCh chan struct{}) {
-	//n.logger.Infof("NetNode: %s, starting ping\n", n)
+func (n *NetNode) ping(quitCh chan struct{}, logging bool) {
+	if logging {
+		n.logger.Infof("NetNode: %s, starting ping\n", n)
+	}
 	for {
 		select {
 		case <-quitCh:
-			//n.logger.Infof("NetNode: %s, stopping ping\n", n)
+			if logging {
+				n.logger.Infof("NetNode: %s, stopping ping\n", n)
+			}
 			return
 		default:
 			for c, p := range n.peers.peersForPing() {
 				_, err := n.handshakeClient(c)
 				if err != nil {
-					//n.logger.Errorf("NetNode: %s, failed to ping %s: %v\n", n, c, err)
+					if logging {
+						n.logger.Errorf("NetNode: %s, failed to ping %s: %v\n", n, c, err)
+					}
 					n.knownAddrs.append(p.ListenAddress, 0)
 					n.peers.removePeer(c)
 					continue
