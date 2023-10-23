@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/yuriykis/microblocknet/crypto"
-	"github.com/yuriykis/microblocknet/proto"
-	"github.com/yuriykis/microblocknet/store"
-	"github.com/yuriykis/microblocknet/types"
+	"github.com/yuriykis/microblocknet/node/crypto"
+	"github.com/yuriykis/microblocknet/node/proto"
+	"github.com/yuriykis/microblocknet/node/store"
+	"github.com/yuriykis/microblocknet/node/types"
 )
 
 type HeadersList struct {

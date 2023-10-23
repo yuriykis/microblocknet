@@ -6,7 +6,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/yuriykis/microblocknet/proto"
+	"github.com/yuriykis/microblocknet/node/proto"
 )
 
 func RandomHash() []byte {

@@ -3,8 +3,8 @@ package node
 import (
 	"sync"
 
-	"github.com/yuriykis/microblocknet/proto"
-	"github.com/yuriykis/microblocknet/types"
+	"github.com/yuriykis/microblocknet/node/proto"
+	"github.com/yuriykis/microblocknet/node/types"
 )
 
 type Mempool struct {

@@ -5,10 +5,10 @@ import (
 	"log"
 	"time"
 
-	"github.com/yuriykis/microblocknet/crypto"
-	"github.com/yuriykis/microblocknet/node"
-	"github.com/yuriykis/microblocknet/proto"
-	"github.com/yuriykis/microblocknet/types"
+	"github.com/yuriykis/microblocknet/node/crypto"
+	"github.com/yuriykis/microblocknet/node/node"
+	"github.com/yuriykis/microblocknet/node/proto"
+	"github.com/yuriykis/microblocknet/node/types"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )

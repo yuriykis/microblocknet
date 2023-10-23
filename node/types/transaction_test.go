@@ -4,9 +4,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/yuriykis/microblocknet/crypto"
-	"github.com/yuriykis/microblocknet/proto"
-	"github.com/yuriykis/microblocknet/util"
+	"github.com/yuriykis/microblocknet/node/crypto"
+	"github.com/yuriykis/microblocknet/node/proto"
+	"github.com/yuriykis/microblocknet/node/util"
 )
 
 func TestHashTransaction(t *testing.T) {

@@ -1,4 +1,4 @@
-module github.com/yuriykis/microblocknet
+module github.com/yuriykis/microblocknet/node
 
 go 1.21.3
 

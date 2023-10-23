@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/yuriykis/microblocknet/crypto"
-	"github.com/yuriykis/microblocknet/util"
+	"github.com/yuriykis/microblocknet/node/crypto"
+	"github.com/yuriykis/microblocknet/node/util"
 )
 
 func TestHashBlock(t *testing.T) {

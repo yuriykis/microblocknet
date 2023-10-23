@@ -4,8 +4,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/yuriykis/microblocknet/node/client"
-	"github.com/yuriykis/microblocknet/proto"
+	"github.com/yuriykis/microblocknet/node/node/client"
+	"github.com/yuriykis/microblocknet/node/proto"
 )
 
 const checkConnectInterval = 50 * time.Second

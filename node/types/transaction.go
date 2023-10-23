@@ -3,8 +3,8 @@ package types
 import (
 	"crypto/sha256"
 
-	"github.com/yuriykis/microblocknet/crypto"
-	"github.com/yuriykis/microblocknet/proto"
+	"github.com/yuriykis/microblocknet/node/crypto"
+	"github.com/yuriykis/microblocknet/node/proto"
 	pb "google.golang.org/protobuf/proto"
 )
 

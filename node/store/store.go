@@ -1,7 +1,7 @@
 package store
 
 import (
-	"github.com/yuriykis/microblocknet/proto"
+	"github.com/yuriykis/microblocknet/node/proto"
 )
 
 type TxStorer interface {

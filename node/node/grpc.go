@@ -3,7 +3,7 @@ package node
 import (
 	"context"
 
-	"github.com/yuriykis/microblocknet/proto"
+	"github.com/yuriykis/microblocknet/node/proto"
 )
 
 type ChainServer interface {
