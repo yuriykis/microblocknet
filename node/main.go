@@ -72,7 +72,7 @@ func debug() {
 	go n4.Start(n4.ListenAddress, []string{":3001"}, grpcTransportServer4, false)
 
 	go sendTransaction(n1, 3, 0, 99000)
-	go sendTransaction(n2, 10, 1, 98000)
+	go sendTransaction(n2, 20, 1, 98000)
 
 	// go stop(n1, grpcServer1, 10)
 	// go stop(n2, grpcServer2, 30)
