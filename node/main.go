@@ -40,10 +40,8 @@ func main() {
 	}
 
 	n := node.New(listenAddr)
-	grcpServer := node.NewGRPCServer(listenAddr)
-	_ = grcpServer.MakeTransport(n.ListenAddress, n)
 
-	log.Fatal(n.Start(listenAddr, bootstrapNodes, grcpServer, false))
+	log.Fatal(n.Start(bootstrapNodes, false))
 }
 
 // for debugging
@@ -54,22 +52,12 @@ func debug() {
 		n2 = node.New(":3001")
 		n3 = node.New(":3002")
 		n4 = node.New(":3003")
-
-		grpcTransportServer1 = node.NewGRPCServer(":3000")
-		grpcTransportServer2 = node.NewGRPCServer(":3001")
-		grpcTransportServer3 = node.NewGRPCServer(":3002")
-		grpcTransportServer4 = node.NewGRPCServer(":3003")
-
-		_ = grpcTransportServer1.MakeTransport(n1.ListenAddress, n1)
-		_ = grpcTransportServer2.MakeTransport(n2.ListenAddress, n2)
-		_ = grpcTransportServer3.MakeTransport(n3.ListenAddress, n3)
-		_ = grpcTransportServer4.MakeTransport(n4.ListenAddress, n4)
 	)
 
-	go n1.Start(n1.ListenAddress, []string{}, grpcTransportServer1, true)
-	go n2.Start(n2.ListenAddress, []string{":3000"}, grpcTransportServer2, false)
-	go n3.Start(n3.ListenAddress, []string{":3000"}, grpcTransportServer3, false)
-	go n4.Start(n4.ListenAddress, []string{":3001"}, grpcTransportServer4, false)
+	go n1.Start([]string{}, true)
+	go n2.Start([]string{":3000"}, false)
+	go n3.Start([]string{":3000"}, false)
+	go n4.Start([]string{":3001"}, false)
 
 	go sendTransaction(n1, 3, 0, 99000)
 	go sendTransaction(n2, 20, 1, 98000)
@@ -80,9 +68,9 @@ func debug() {
 	select {}
 }
 
-func stop(n *node.NetNode, server node.Server, duration time.Duration) {
+func stop(n *node.NetNode, duration time.Duration) {
 	time.Sleep(duration * time.Second)
-	n.Stop(server)
+	n.Stop()
 }
 
 func sendTransaction(n *node.NetNode, duration time.Duration, height int, currentValue int64) {

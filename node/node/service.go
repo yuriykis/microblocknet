@@ -59,6 +59,8 @@ type NetNode struct {
 	chain   *Chain
 
 	isMiner bool
+
+	transportServer TransportServer
 	quit
 }
 
@@ -91,12 +93,12 @@ func New(listenAddress string) *NetNode {
 	}
 }
 
-func (n *NetNode) Start(listenAddr string, bootstrapNodes []string, server Server, isMiner bool) error {
+func (n *NetNode) Start(bootstrapNodes []string, isMiner bool) error {
 
 	// TODO: adjust logger itself to show specific info, eg. node info, blockchain info, etc.
-	go n.tryConnect(n.tryConnectQuitCh, false)
-	go n.ping(n.pingQuitCh, false)
-	go n.showNodeInfo(n.showNodeInfoQuitCh, false, true)
+	go n.tryConnect(n.tryConnectQuitCh, true)
+	go n.ping(n.pingQuitCh, true)
+	go n.showNodeInfo(n.showNodeInfoQuitCh, false, false)
 
 	if len(bootstrapNodes) > 0 {
 		go func() {
@@ -112,7 +114,8 @@ func (n *NetNode) Start(listenAddr string, bootstrapNodes []string, server Serve
 		go n.minerLoop()
 	}
 
-	return server.Serve()
+	n.transportServer = NewGRPCNodeServer(n, n.ListenAddress)
+	return n.transportServer.Start()
 }
 
 func (n *NetNode) addMempoolToBlock(block *proto.Block) {
@@ -232,9 +235,9 @@ func (n *NetNode) showNodeInfo(quitCh chan struct{}, netLogging bool, blockchain
 	}
 }
 
-func (n *NetNode) Stop(server Server) {
+func (n *NetNode) Stop() {
 	n.shutdown()
-	server.Close()
+	n.transportServer.Stop()
 }
 
 func (n *NetNode) String() string {
