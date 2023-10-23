@@ -40,7 +40,7 @@ func main() {
 	}
 
 	n := node.New(listenAddr)
-	grcpServer := node.NewGRPCServer(grpc.NewServer(), listenAddr)
+	grcpServer := node.NewGRPCServer(listenAddr)
 	_ = grcpServer.MakeTransport(n.ListenAddress, n)
 
 	log.Fatal(n.Start(listenAddr, bootstrapNodes, grcpServer, false))
@@ -55,10 +55,10 @@ func debug() {
 		n3 = node.New(":3002")
 		n4 = node.New(":3003")
 
-		grpcTransportServer1 = node.NewGRPCServer(grpc.NewServer(), ":3000")
-		grpcTransportServer2 = node.NewGRPCServer(grpc.NewServer(), ":3001")
-		grpcTransportServer3 = node.NewGRPCServer(grpc.NewServer(), ":3002")
-		grpcTransportServer4 = node.NewGRPCServer(grpc.NewServer(), ":3003")
+		grpcTransportServer1 = node.NewGRPCServer(":3000")
+		grpcTransportServer2 = node.NewGRPCServer(":3001")
+		grpcTransportServer3 = node.NewGRPCServer(":3002")
+		grpcTransportServer4 = node.NewGRPCServer(":3003")
 
 		_ = grpcTransportServer1.MakeTransport(n1.ListenAddress, n1)
 		_ = grpcTransportServer2.MakeTransport(n2.ListenAddress, n2)
@@ -73,6 +73,7 @@ func debug() {
 
 	go sendTransaction(n1, 3, 0, 99000)
 	go sendTransaction(n2, 10, 1, 98000)
+
 	// go stop(n1, grpcServer1, 10)
 	// go stop(n2, grpcServer2, 30)
 

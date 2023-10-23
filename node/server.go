@@ -22,9 +22,8 @@ type GRPCServer struct {
 	chainServer ChainServer
 }
 
-func NewGRPCServer(grpcServer *grpc.Server, listenAddr string) *GRPCServer {
+func NewGRPCServer(listenAddr string) *GRPCServer {
 	return &GRPCServer{
-		grpcServer: grpcServer,
 		listenAddr: listenAddr,
 	}
 }
@@ -46,12 +45,11 @@ func (s *GRPCServer) Close() error {
 func (s *GRPCServer) MakeTransport(listenAddr string, svc Node) *GRPCNodeServer {
 	fmt.Printf("Node %s, starting GRPC transport\n", listenAddr)
 	var (
-		opt        = []grpc.ServerOption{}
-		grpcServer = grpc.NewServer(opt...)
+		opt = []grpc.ServerOption{}
 	)
-
+	s.grpcServer = grpc.NewServer(opt...)
 	grpcNodeServer := NewGRPCNodeServer(svc)
-	proto.RegisterNodeServer(grpcServer, grpcNodeServer)
+	proto.RegisterNodeServer(s.grpcServer, grpcNodeServer)
 	s.chainServer = grpcNodeServer
 
 	return grpcNodeServer
