@@ -13,7 +13,7 @@ import (
 	"github.com/yuriykis/microblocknet/node/types"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	gprcPeer "google.golang.org/grpc/peer"
+	grpcPeer "google.golang.org/grpc/peer"
 )
 
 const (
@@ -153,7 +153,7 @@ func (n *node) NewTransaction(
 	ctx context.Context,
 	t *proto.Transaction,
 ) (*proto.Transaction, error) {
-	peer, ok := gprcPeer.FromContext(ctx)
+	peer, ok := grpcPeer.FromContext(ctx)
 	if !ok {
 		return nil, fmt.Errorf("node: %s, failed to get peer from context", n)
 	}
@@ -172,7 +172,7 @@ func (n *node) NewTransaction(
 }
 
 func (n *node) NewBlock(ctx context.Context, b *proto.Block) (*proto.Block, error) {
-	peer, ok := gprcPeer.FromContext(ctx)
+	peer, ok := grpcPeer.FromContext(ctx)
 	if !ok {
 		return nil, fmt.Errorf("node: %s, failed to get peer from context", n)
 	}
