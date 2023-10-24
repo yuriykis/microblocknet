@@ -109,9 +109,9 @@ func New(listenAddress string, apiListenAddress string) Service {
 func (n *node) Start(bootstrapNodes []string, isMiner bool) error {
 
 	// TODO: adjust logger itself to show specific info, eg. node info, blockchain info, etc.
-	go n.tryConnect(n.tryConnectQuitCh, true)
-	go n.ping(n.pingQuitCh, true)
-	go n.showNodeInfo(n.showNodeInfoQuitCh, true, false)
+	go n.tryConnect(n.tryConnectQuitCh, false)
+	go n.ping(n.pingQuitCh, false)
+	go n.showNodeInfo(n.showNodeInfoQuitCh, false, true)
 
 	if len(bootstrapNodes) > 0 {
 		go func() {

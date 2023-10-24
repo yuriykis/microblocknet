@@ -1,4 +1,5 @@
 BINARY_NAME=microblocknet
+GATEWAY_NAME=gateway
 NODE_SERVICE_NAME=node
 
 build-binary:
@@ -6,6 +7,12 @@ build-binary:
 
 run: build-binary
 	@DEBUG=true ./$(NODE_SERVICE_NAME)/bin/$(BINARY_NAME)
+
+gate-build:
+	@cd ./gateway; go build  -o ./bin/$(GATEWAY_NAME) -v
+
+gate: gate-build
+	@./gateway/bin/$(GATEWAY_NAME)
 
 test:
 	@cd ./$(NODE_SERVICE_NAME); go test -v ./... -count=1
@@ -27,4 +34,4 @@ proto:
 build: proto
 	@docker build -t microblocknet ./node
 
-.PHONY: build run test proto
+.PHONY: build run test proto build-binary gateway up down up-d

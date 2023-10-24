@@ -20,7 +20,7 @@ func NewHTTPClient(endpoint string) *HTTPClient {
 	}
 }
 
-func (c *HTTPClient) GetBlockByHeight(ctx context.Context, height int) (*proto.Block, error) {
+func (c *HTTPClient) GetBlockByHeight(ctx context.Context, height int) (*types.GetBlockByHeightResponse, error) {
 	cReq := types.GetBlockByHeightRequest{
 		Height: height,
 	}
@@ -43,7 +43,7 @@ func (c *HTTPClient) GetBlockByHeight(ctx context.Context, height int) (*proto.B
 	if err := json.NewDecoder(resp.Body).Decode(&cResp); err != nil {
 		return nil, err
 	}
-	return cResp.Block, nil
+	return &cResp, nil
 }
 
 func (c *HTTPClient) GetUTXOsByAddress(address []byte) ([]*proto.UTXO, error) {
