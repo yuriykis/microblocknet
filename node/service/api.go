@@ -2,12 +2,13 @@ package service
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
-	"strconv"
+
+	"github.com/yuriykis/microblocknet/node/service/types"
 )
 
+// the api server is used to expose the node's functionality the gateway
 type ApiServer interface {
 	Start() error
 	Stop() error
@@ -88,18 +89,23 @@ func makeHTTPHandlerFunc(fn HTTPFunc) http.HandlerFunc {
 
 func handleGetBlockByHeight(svc Service) HTTPFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		height := r.URL.Query().Get("height")
-		if height == "" {
-			return errors.New("height is required")
+		req := types.GetBlockByHeightRequest{}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			return APIError{
+				Code: http.StatusBadRequest,
+				Err:  fmt.Errorf("failed to decode request body: %w", err),
+			}
 		}
-		h, err := strconv.Atoi(height)
+		block, err := svc.GetBlockByHeight(req.Height)
 		if err != nil {
-			return err
+			return APIError{
+				Code: http.StatusInternalServerError,
+				Err:  fmt.Errorf("failed to get block by height: %w", err),
+			}
 		}
-		b, err := svc.GetBlockByHeight(h)
-		if err != nil {
-			return err
-		}
-		return json.NewEncoder(w).Encode(b)
+		return writeJSON(w, http.StatusOK, types.GetBlockByHeightResponse{
+			Block: block,
+		})
+
 	}
 }
