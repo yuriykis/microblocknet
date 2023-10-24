@@ -1,5 +1,6 @@
 BINARY_NAME=microblocknet
 GATEWAY_NAME=gateway
+CLIENT_NAME=client
 NODE_SERVICE_NAME=node
 
 build-binary:
@@ -14,6 +15,12 @@ gate-build:
 gate: gate-build
 	@./gateway/bin/$(GATEWAY_NAME)
 
+client-build:
+	@cd ./client; go build  -o ./bin/$(CLIENT_NAME) -v
+
+client: client-build
+	@./client/bin/$(CLIENT_NAME)
+	
 test:
 	@cd ./$(NODE_SERVICE_NAME); go test -v ./... -count=1
 

@@ -5,10 +5,12 @@ import (
 	"log"
 	"time"
 
+	"github.com/yuriykis/microblocknet/client/types"
+	"github.com/yuriykis/microblocknet/gateway/client"
 	"github.com/yuriykis/microblocknet/node/crypto"
 	"github.com/yuriykis/microblocknet/node/proto"
 	"github.com/yuriykis/microblocknet/node/service"
-	"github.com/yuriykis/microblocknet/node/types"
+	nodetypes "github.com/yuriykis/microblocknet/node/types"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -21,7 +23,15 @@ func main() {
 	// go stop(n1, grpcServer1, 10)
 	// go stop(n2, grpcServer2, 30)
 
-	select {}
+	gatewayClient := client.NewHTTPClient("http://localhost:6000")
+	var req types.GetBlockByHeightRequest
+	req.Height = 1
+	res, err := gatewayClient.GetBlockByHeight(context.Background(), req.Height)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Println(res.Block)
+
 }
 
 func sendTransaction(n service.Service, duration time.Duration, height int, currentValue int64) {
@@ -58,7 +68,7 @@ func makeTransaction(endpoint string, n service.Service, height int, currentValu
 	}
 
 	txInput := &proto.TxInput{
-		PrevTxHash: []byte(types.HashTransaction(prevBlockTx)),
+		PrevTxHash: []byte(nodetypes.HashTransaction(prevBlockTx)),
 		PublicKey:  myPrivKey.PublicKey().Bytes(),
 		OutIndex:   myUTXOs[0].OutIndex,
 	}
@@ -74,7 +84,7 @@ func makeTransaction(endpoint string, n service.Service, height int, currentValu
 		Inputs:  []*proto.TxInput{txInput},
 		Outputs: []*proto.TxOutput{txOutput1, txOutput2},
 	}
-	sig := types.SignTransaction(tx, myPrivKey)
+	sig := nodetypes.SignTransaction(tx, myPrivKey)
 	tx.Inputs[0].Signature = sig.Bytes()
 
 	ctx := context.Background()

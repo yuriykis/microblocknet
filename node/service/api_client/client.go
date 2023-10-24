@@ -1,9 +1,13 @@
 package apiclient
 
-import "github.com/yuriykis/microblocknet/node/proto"
+import (
+	"context"
+
+	"github.com/yuriykis/microblocknet/node/service/types"
+)
 
 type Client interface {
-	GetBlockByHeight(height int) (*proto.Block, error)
-	GetUTXOsByAddress(address []byte) ([]*proto.UTXO, error)
-	PeersAddrs() []string
+	GetBlockByHeight(ctx context.Context, height int) (*types.GetBlockByHeightResponse, error)
+	GetUTXOsByAddress(ctx context.Context, address []byte) (*types.GetUTXOsByAddressResponse, error)
+	PeersAddrs(ctx context.Context) []string
 }
