@@ -10,11 +10,13 @@ import (
 	"google.golang.org/grpc"
 )
 
+// used to manage the transport layer between nodes
 type TransportServer interface {
 	Start() error
 	Stop() error
 }
 
+// interface for the node business logic
 type NodeServer interface {
 	Handshake(ctx context.Context, v *proto.Version) (*proto.Version, error)
 	NewTransaction(ctx context.Context, t *proto.Transaction) (*proto.Transaction, error)
@@ -22,22 +24,23 @@ type NodeServer interface {
 	GetBlocks(ctx context.Context, v *proto.Version) (*proto.Blocks, error)
 }
 
+// GRPCNodeServer implements the NodeServer interface and the TransportServer interface
 type GRPCNodeServer struct {
 	proto.UnimplementedNodeServer
-	svc Node
+	node Node
 
 	grpcServer     *grpc.Server
 	nodeListenAddr string
 }
 
-func NewGRPCNodeServer(svc Node, nodeListenAddr string) *GRPCNodeServer {
+func NewGRPCNodeServer(node Node, nodeListenAddr string) *GRPCNodeServer {
 	fmt.Printf("Node %s, starting GRPC transport\n", nodeListenAddr)
 	var (
 		opt        = []grpc.ServerOption{}
 		grpcServer = grpc.NewServer(opt...)
 	)
 	grpcNodeServer := &GRPCNodeServer{
-		svc:            svc,
+		node:           node,
 		grpcServer:     grpcServer,
 		nodeListenAddr: nodeListenAddr,
 	}
@@ -48,19 +51,19 @@ func NewGRPCNodeServer(svc Node, nodeListenAddr string) *GRPCNodeServer {
 
 // service methods (NodeServer interface)
 func (s *GRPCNodeServer) Handshake(ctx context.Context, v *proto.Version) (*proto.Version, error) {
-	return s.svc.Handshake(ctx, v)
+	return s.node.Handshake(ctx, v)
 }
 
 func (s *GRPCNodeServer) NewTransaction(ctx context.Context, t *proto.Transaction) (*proto.Transaction, error) {
-	return s.svc.NewTransaction(ctx, t)
+	return s.node.NewTransaction(ctx, t)
 }
 
 func (s *GRPCNodeServer) NewBlock(ctx context.Context, b *proto.Block) (*proto.Block, error) {
-	return s.svc.NewBlock(ctx, b)
+	return s.node.NewBlock(ctx, b)
 }
 
 func (s *GRPCNodeServer) GetBlocks(ctx context.Context, v *proto.Version) (*proto.Blocks, error) {
-	return s.svc.GetBlocks(ctx, v)
+	return s.node.GetBlocks(ctx, v)
 }
 
 // transport methods (TransportServer interface)

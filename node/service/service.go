@@ -55,6 +55,7 @@ func (q *quit) shutdown() {
 type ServerConfig struct {
 	Version       string
 	ListenAddress string
+	ApiListenAddr string
 	PrivateKey    *crypto.PrivateKey
 }
 type node struct {
@@ -70,10 +71,12 @@ type node struct {
 	isMiner bool
 
 	transportServer TransportServer
+	apiServer       ApiServer
+
 	quit
 }
 
-func New(listenAddress string) Service {
+func New(listenAddress string, apiListenAddress string) Service {
 	var (
 		txStore    = store.NewMemoryTxStore()
 		blockStore = store.NewMemoryBlockStore()
@@ -85,6 +88,7 @@ func New(listenAddress string) Service {
 		ServerConfig: ServerConfig{
 			Version:       "0.0.1",
 			ListenAddress: listenAddress,
+			ApiListenAddr: apiListenAddress,
 			PrivateKey:    nil,
 		},
 
@@ -105,9 +109,9 @@ func New(listenAddress string) Service {
 func (n *node) Start(bootstrapNodes []string, isMiner bool) error {
 
 	// TODO: adjust logger itself to show specific info, eg. node info, blockchain info, etc.
-	go n.tryConnect(n.tryConnectQuitCh, false)
-	go n.ping(n.pingQuitCh, false)
-	go n.showNodeInfo(n.showNodeInfoQuitCh, false, true)
+	go n.tryConnect(n.tryConnectQuitCh, true)
+	go n.ping(n.pingQuitCh, true)
+	go n.showNodeInfo(n.showNodeInfoQuitCh, true, false)
 
 	if len(bootstrapNodes) > 0 {
 		go func() {
@@ -124,11 +128,15 @@ func (n *node) Start(bootstrapNodes []string, isMiner bool) error {
 	}
 
 	n.transportServer = NewGRPCNodeServer(n, n.ListenAddress)
-	return n.transportServer.Start()
+	go n.transportServer.Start()
+
+	n.apiServer = NewApiServer(n, n.ApiListenAddr)
+	return n.apiServer.Start()
 }
 
 func (n *node) Stop() error {
 	n.shutdown()
+	n.apiServer.Stop()
 	return n.transportServer.Stop()
 }
 

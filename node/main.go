@@ -15,7 +15,10 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-const defaultListenAddr = ":3000"
+const (
+	defaultListenAddr = ":3000"
+	defaultAPIAddr    = ":4000"
+)
 
 const godSeed = "41b84a2eff9a47393471748fbbdff9d20c14badab3d2de59fd8b5e98edd34d1c577c4c3515c6c19e5b9fdfba39528b1be755aae4d6a75fc851d3a17fbf51f1bc"
 
@@ -28,18 +31,22 @@ func main() {
 
 	var (
 		listenAddr        = os.Getenv("LISTEN_ADDR")
+		apiListenAddr     = os.Getenv("API_LISTEN_ADDR")
 		bootstrapNodesVar = os.Getenv("BOOTSTRAP_NODES")
 		bootstrapNodes    []string
 	)
 	if listenAddr == "" {
 		listenAddr = defaultListenAddr
 	}
+	if apiListenAddr == "" {
+		apiListenAddr = defaultAPIAddr
+	}
 
 	if bootstrapNodesVar != "" {
 		bootstrapNodes = strings.Split(bootstrapNodesVar, ",")
 	}
 
-	n := service.New(listenAddr)
+	n := service.New(listenAddr, apiListenAddr)
 
 	log.Fatal(n.Start(bootstrapNodes, false))
 }
@@ -48,10 +55,10 @@ func main() {
 func debug() {
 
 	var (
-		n1 = service.New(":3000")
-		n2 = service.New(":3001")
-		n3 = service.New(":3002")
-		n4 = service.New(":3003")
+		n1 = service.New(":3000", ":4000")
+		n2 = service.New(":3001", ":4001")
+		n3 = service.New(":3002", ":4002")
+		n4 = service.New(":3003", ":4003")
 	)
 
 	go n1.Start([]string{}, true)
@@ -60,7 +67,7 @@ func debug() {
 	go n4.Start([]string{":3001"}, false)
 
 	go sendTransaction(n1, 3, 0, 99000)
-	go sendTransaction(n2, 20, 1, 98000)
+	// go sendTransaction(n2, 20, 1, 98000)
 
 	// go stop(n1, grpcServer1, 10)
 	// go stop(n2, grpcServer2, 30)
