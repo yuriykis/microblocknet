@@ -12,7 +12,7 @@ import (
 type Client interface {
 	CreateTransaction(ctx context.Context) error
 	GetMyUTXOs(ctx context.Context) error
-	GetBlockByHeight(ctx context.Context) error
+	GetBlockByHeight(ctx context.Context, height int) (*types.GetBlockByHeightResponse, error)
 	GetUTXOsByAddress(ctx context.Context) error
 }
 
@@ -31,6 +31,10 @@ func (c *HTTPClient) CreateTransaction(ctx context.Context) error {
 }
 
 func (c *HTTPClient) GetMyUTXOs(ctx context.Context) error {
+	return nil
+}
+
+func (c *HTTPClient) GetUTXOsByAddress(ctx context.Context) error {
 	return nil
 }
 

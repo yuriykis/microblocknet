@@ -23,15 +23,35 @@ func main() {
 	// go stop(n1, grpcServer1, 10)
 	// go stop(n2, grpcServer2, 30)
 
-	gatewayClient := client.NewHTTPClient("http://localhost:6000")
-	var req types.GetBlockByHeightRequest
-	req.Height = 1
-	res, err := gatewayClient.GetBlockByHeight(context.Background(), req.Height)
+	bc := newBlockchainClient(client.NewHTTPClient("http://localhost:6000"))
+	res, err := bc.GetBlockByHeight(context.Background(), 1)
 	if err != nil {
 		log.Fatal(err)
 	}
 	log.Println(res.Block)
+}
 
+type blockchainClient struct {
+	client client.Client
+}
+
+func newBlockchainClient(c client.Client) *blockchainClient {
+	return &blockchainClient{
+		client: c,
+	}
+}
+
+func (bc *blockchainClient) GetBlockByHeight(ctx context.Context, height int) (*types.GetBlockByHeightResponse, error) {
+	var req types.GetBlockByHeightRequest
+	req.Height = height
+	res, err := bc.client.GetBlockByHeight(context.Background(), req.Height)
+	if err != nil {
+		log.Fatal(err)
+	}
+	cRes := &types.GetBlockByHeightResponse{
+		Block: res.Block,
+	}
+	return cRes, nil
 }
 
 func sendTransaction(n service.Service, duration time.Duration, height int, currentValue int64) {

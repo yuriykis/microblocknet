@@ -9,3 +9,9 @@ type GetBlockByHeightRequest struct {
 type GetBlockByHeightResponse struct {
 	Block *proto.Block
 }
+
+type CreateTransactionRequest struct {
+	FromAddress []byte
+	ToAddress   []byte
+	Amount      int
+}
