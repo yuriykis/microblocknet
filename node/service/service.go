@@ -6,8 +6,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/yuriykis/microblocknet/node/crypto"
-	"github.com/yuriykis/microblocknet/node/proto"
+	"github.com/yuriykis/microblocknet/common/crypto"
+	"github.com/yuriykis/microblocknet/common/proto"
 	"github.com/yuriykis/microblocknet/node/service/client"
 	"github.com/yuriykis/microblocknet/node/store"
 	"github.com/yuriykis/microblocknet/node/types"

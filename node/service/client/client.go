@@ -3,7 +3,7 @@ package client
 import (
 	"context"
 
-	"github.com/yuriykis/microblocknet/node/proto"
+	"github.com/yuriykis/microblocknet/common/proto"
 )
 
 type Client interface {

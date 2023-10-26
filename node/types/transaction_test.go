@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/yuriykis/microblocknet/node/crypto"
-	"github.com/yuriykis/microblocknet/node/proto"
+	"github.com/yuriykis/microblocknet/common/crypto"
+	"github.com/yuriykis/microblocknet/common/proto"
 	"github.com/yuriykis/microblocknet/node/util"
 )
 

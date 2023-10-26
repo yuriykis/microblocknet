@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/yuriykis/microblocknet/node/proto"
+	"github.com/yuriykis/microblocknet/common/proto"
 	"github.com/yuriykis/microblocknet/node/types"
 	"go.mongodb.org/mongo-driver/mongo"
 )

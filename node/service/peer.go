@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/yuriykis/microblocknet/node/proto"
+	"github.com/yuriykis/microblocknet/common/proto"
 	"github.com/yuriykis/microblocknet/node/service/client"
 )
 

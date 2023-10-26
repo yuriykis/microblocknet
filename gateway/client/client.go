@@ -6,13 +6,13 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/yuriykis/microblocknet/gateway/types"
+	"github.com/yuriykis/microblocknet/common/requests"
 )
 
 type Client interface {
-	CreateTransaction(ctx context.Context) error
+	CreateTransaction(ctx context.Context, tReq requests.CreateTransactionRequest) error
 	GetMyUTXOs(ctx context.Context) error
-	GetBlockByHeight(ctx context.Context, height int) (*types.GetBlockByHeightResponse, error)
+	GetBlockByHeight(ctx context.Context, height int) (*requests.GetBlockByHeightResponse, error)
 	GetUTXOsByAddress(ctx context.Context) error
 }
 
@@ -26,7 +26,7 @@ func NewHTTPClient(endpoint string) *HTTPClient {
 	}
 }
 
-func (c *HTTPClient) CreateTransaction(ctx context.Context) error {
+func (c *HTTPClient) CreateTransaction(ctx context.Context, tReq requests.CreateTransactionRequest) error {
 	return nil
 }
 
@@ -38,8 +38,8 @@ func (c *HTTPClient) GetUTXOsByAddress(ctx context.Context) error {
 	return nil
 }
 
-func (c *HTTPClient) GetBlockByHeight(ctx context.Context, height int) (*types.GetBlockByHeightResponse, error) {
-	cReq := types.GetBlockByHeightRequest{
+func (c *HTTPClient) GetBlockByHeight(ctx context.Context, height int) (*requests.GetBlockByHeightResponse, error) {
+	cReq := requests.GetBlockByHeightRequest{
 		Height: height,
 	}
 	b, err := json.Marshal(&cReq)
@@ -60,7 +60,7 @@ func (c *HTTPClient) GetBlockByHeight(ctx context.Context, height int) (*types.G
 	}
 
 	defer resp.Body.Close()
-	var cResp types.GetBlockByHeightResponse
+	var cResp requests.GetBlockByHeightResponse
 	if err := json.NewDecoder(resp.Body).Decode(&cResp); err != nil {
 		return nil, err
 	}

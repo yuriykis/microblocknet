@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/yuriykis/microblocknet/node/service/types"
+	"github.com/yuriykis/microblocknet/common/requests"
 )
 
 type HTTPClient struct {
@@ -19,8 +19,8 @@ func NewHTTPClient(endpoint string) *HTTPClient {
 	}
 }
 
-func (c *HTTPClient) GetBlockByHeight(ctx context.Context, height int) (*types.GetBlockByHeightResponse, error) {
-	cReq := types.GetBlockByHeightRequest{
+func (c *HTTPClient) GetBlockByHeight(ctx context.Context, height int) (*requests.GetBlockByHeightResponse, error) {
+	cReq := requests.GetBlockByHeightRequest{
 		Height: height,
 	}
 	b, err := json.Marshal(&cReq)
@@ -38,15 +38,18 @@ func (c *HTTPClient) GetBlockByHeight(ctx context.Context, height int) (*types.G
 		return nil, err
 	}
 	defer resp.Body.Close()
-	var cResp types.GetBlockByHeightResponse
+	var cResp requests.GetBlockByHeightResponse
 	if err := json.NewDecoder(resp.Body).Decode(&cResp); err != nil {
 		return nil, err
 	}
 	return &cResp, nil
 }
 
-func (c *HTTPClient) GetUTXOsByAddress(ctx context.Context, address []byte) (*types.GetUTXOsByAddressResponse, error) {
-	cReq := types.GetUTXOsByAddressRequest{
+func (c *HTTPClient) GetUTXOsByAddress(
+	ctx context.Context,
+	address []byte,
+) (*requests.GetUTXOsByAddressResponse, error) {
+	cReq := requests.GetUTXOsByAddressRequest{
 		Address: address,
 	}
 	b, err := json.Marshal(&cReq)
@@ -64,7 +67,7 @@ func (c *HTTPClient) GetUTXOsByAddress(ctx context.Context, address []byte) (*ty
 		return nil, err
 	}
 	defer resp.Body.Close()
-	var cResp types.GetUTXOsByAddressResponse
+	var cResp requests.GetUTXOsByAddressResponse
 	if err := json.NewDecoder(resp.Body).Decode(&cResp); err != nil {
 		return nil, err
 	}

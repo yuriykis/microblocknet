@@ -36,7 +36,7 @@ up-d:
 proto:
 	@protoc --go_out=. --go_opt=paths=source_relative \
 	--go-grpc_out=. --go-grpc_opt=paths=source_relative \
-	./$(NODE_SERVICE_NAME)/proto/*.proto
+	./common/proto/*.proto
 	
 build: proto
 	@docker build -t microblocknet ./node

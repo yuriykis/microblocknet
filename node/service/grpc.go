@@ -6,7 +6,7 @@ import (
 	"log"
 	"net"
 
-	"github.com/yuriykis/microblocknet/node/proto"
+	"github.com/yuriykis/microblocknet/common/proto"
 	"google.golang.org/grpc"
 )
 

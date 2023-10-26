@@ -5,8 +5,8 @@ import (
 	"crypto/sha256"
 
 	"github.com/cbergoon/merkletree"
-	"github.com/yuriykis/microblocknet/node/crypto"
-	"github.com/yuriykis/microblocknet/node/proto"
+	"github.com/yuriykis/microblocknet/common/crypto"
+	"github.com/yuriykis/microblocknet/common/proto"
 	pb "google.golang.org/protobuf/proto"
 )
 

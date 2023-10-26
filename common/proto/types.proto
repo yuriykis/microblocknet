@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-option go_package = "github.com/yuriykis/microblocknet/node/proto";
+option go_package = "github.com/yuriykis/microblocknet/common/proto";
 
 service Node {
   rpc Handshake(Version) returns (Version);

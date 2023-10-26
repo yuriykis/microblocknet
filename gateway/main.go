@@ -6,8 +6,8 @@ import (
 	"flag"
 	"net/http"
 
+	"github.com/yuriykis/microblocknet/common/requests"
 	apiclient "github.com/yuriykis/microblocknet/node/service/api_client"
-	nodetypes "github.com/yuriykis/microblocknet/node/service/types"
 )
 
 func main() {
@@ -35,7 +35,7 @@ func NewApiHandler() *apiHandler {
 }
 
 func (h *apiHandler) handleGetBlockByHeight(w http.ResponseWriter, r *http.Request) error {
-	var req nodetypes.GetBlockByHeightRequest
+	var req requests.GetBlockByHeightRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return err
 	}
@@ -47,7 +47,7 @@ func (h *apiHandler) handleGetBlockByHeight(w http.ResponseWriter, r *http.Reque
 }
 
 func (h *apiHandler) handleGetUTXOsByAddress(w http.ResponseWriter, r *http.Request) error {
-	var req nodetypes.GetUTXOsByAddressRequest
+	var req requests.GetUTXOsByAddressRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return err
 	}

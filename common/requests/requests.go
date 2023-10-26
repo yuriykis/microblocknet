@@ -1,6 +1,6 @@
-package types
+package requests
 
-import "github.com/yuriykis/microblocknet/node/proto"
+import "github.com/yuriykis/microblocknet/common/proto"
 
 type CreateTransactionRequest struct {
 	FromAddress []byte
@@ -34,4 +34,10 @@ type GetUTXOsByAddressRequest struct {
 
 type GetUTXOsByAddressResponse struct {
 	UTXOs []*proto.UTXO
+}
+
+type PeersAddrsRequest struct{}
+
+type PeersAddrsResponse struct {
+	PeersAddrs []string
 }
