@@ -10,7 +10,7 @@ import (
 )
 
 type Client interface {
-	CreateTransaction(ctx context.Context, tReq requests.CreateTransactionRequest) error
+	InitTransaction(ctx context.Context, tReq requests.CreateTransactionRequest) error
 	GetMyUTXOs(ctx context.Context) error
 	GetBlockByHeight(ctx context.Context, height int) (*requests.GetBlockByHeightResponse, error)
 	GetUTXOsByAddress(ctx context.Context) error
@@ -26,7 +26,7 @@ func NewHTTPClient(endpoint string) *HTTPClient {
 	}
 }
 
-func (c *HTTPClient) CreateTransaction(ctx context.Context, tReq requests.CreateTransactionRequest) error {
+func (c *HTTPClient) InitTransaction(ctx context.Context, tReq requests.CreateTransactionRequest) error {
 	return nil
 }
 
