@@ -28,6 +28,7 @@ func (s *server) configureRouter() {
 	s.router.POST("/block", s.handler.Block)
 	s.router.GET("/block/:height", s.handler.Block)
 	s.router.GET("/utxo", s.handler.UTXO)
+	s.router.POST("/transaction", s.handler.Transaction)
 }
 
 func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
