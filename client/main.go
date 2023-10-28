@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/yuriykis/microblocknet/client/types"
 	"github.com/yuriykis/microblocknet/common/crypto"
 	"github.com/yuriykis/microblocknet/common/requests"
 	gateway "github.com/yuriykis/microblocknet/gateway/client"
@@ -20,7 +19,7 @@ func main() {
 	receiverAdd := crypto.GeneratePrivateKey().PublicKey().Address()
 
 	bc := newBlockchainClient(gateway.NewHTTPClient("http://localhost:6000"))
-	t := &types.Transaction{
+	t := &Transaction{
 		FromAddress: myAddr.Bytes(),
 		ToAddress:   receiverAdd.Bytes(),
 		Amount:      100,
@@ -46,7 +45,7 @@ func newBlockchainClient(c gateway.Client) *blockchainClient {
 
 func (bc *blockchainClient) InitTransaction(
 	ctx context.Context,
-	t *types.Transaction,
+	t *Transaction,
 ) (*requests.CreateTransactionResponse, error) {
 	req := requests.CreateTransactionRequest{
 		FromAddress: t.FromAddress,

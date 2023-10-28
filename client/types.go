@@ -1,4 +1,4 @@
-package types
+package main
 
 type Transaction struct {
 	FromAddress []byte
