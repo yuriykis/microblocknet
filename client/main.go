@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	log "github.com/sirupsen/logrus"
+	"github.com/yuriykis/microblocknet/client/types"
 	"github.com/yuriykis/microblocknet/common/crypto"
 	"github.com/yuriykis/microblocknet/common/requests"
-	"github.com/yuriykis/microblocknet/common/types"
 	gateway "github.com/yuriykis/microblocknet/gateway/client"
 	"github.com/yuriykis/microblocknet/node/secure"
 )
@@ -26,7 +27,7 @@ func main() {
 	}
 	tResp, err := bc.InitTransaction(context.Background(), t)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	tx := tResp.Transaction
 	secure.SignTransaction(tx, myKey)
