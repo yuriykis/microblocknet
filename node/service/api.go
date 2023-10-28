@@ -36,6 +36,8 @@ func (s *apiServer) Start() error {
 		switch r.URL.Path {
 		case "/block":
 			makeHTTPHandlerFunc(handleGetBlockByHeight(s.svc))(w, r)
+		case "/utxo":
+			makeHTTPHandlerFunc(handleGetUTXOsByAddress(s.svc))(w, r)
 		default:
 			writeJSON(
 				w,
@@ -107,5 +109,29 @@ func handleGetBlockByHeight(svc Service) HTTPFunc {
 			Block: block,
 		})
 
+	}
+}
+
+func handleGetUTXOsByAddress(svc Service) HTTPFunc {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		req := requests.GetUTXOsByAddressRequest{}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			fmt.Println(err)
+			return APIError{
+				Code: http.StatusBadRequest,
+				Err:  fmt.Errorf("failed to decode request body: %w", err),
+			}
+		}
+		utxos, err := svc.GetUTXOsByAddress(req.Address)
+		if err != nil {
+			fmt.Println(err)
+			return APIError{
+				Code: http.StatusInternalServerError,
+				Err:  fmt.Errorf("failed to get utxos by address: %w", err),
+			}
+		}
+		return writeJSON(w, http.StatusOK, requests.GetUTXOsByAddressResponse{
+			UTXOs: utxos,
+		})
 	}
 }

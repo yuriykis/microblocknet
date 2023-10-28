@@ -9,7 +9,7 @@ type CreateTransactionRequest struct {
 }
 
 type CreateTransactionResponse struct {
-	TransactionHash []byte
+	Transaction *proto.Transaction
 }
 
 type GetMyUTXOsRequest struct {

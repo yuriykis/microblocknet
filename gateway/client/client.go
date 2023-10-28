@@ -10,7 +10,10 @@ import (
 )
 
 type Client interface {
-	InitTransaction(ctx context.Context, tReq requests.CreateTransactionRequest) error
+	InitTransaction(
+		ctx context.Context,
+		tReq requests.CreateTransactionRequest,
+	) (*requests.CreateTransactionResponse, error)
 	GetMyUTXOs(ctx context.Context) error
 	GetBlockByHeight(ctx context.Context, height int) (*requests.GetBlockByHeightResponse, error)
 	GetUTXOsByAddress(ctx context.Context) error
@@ -26,8 +29,34 @@ func NewHTTPClient(endpoint string) *HTTPClient {
 	}
 }
 
-func (c *HTTPClient) InitTransaction(ctx context.Context, tReq requests.CreateTransactionRequest) error {
-	return nil
+func (c *HTTPClient) InitTransaction(
+	ctx context.Context,
+	tReq requests.CreateTransactionRequest,
+) (*requests.CreateTransactionResponse, error) {
+	endpoint := c.endpoint + "/transaction"
+	b, err := json.Marshal(&tReq)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(b))
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+	var cResp requests.CreateTransactionResponse
+	if err := json.NewDecoder(resp.Body).Decode(&cResp.Transaction); err != nil {
+		return nil, err
+	}
+
+	return &cResp, nil
 }
 
 func (c *HTTPClient) GetMyUTXOs(ctx context.Context) error {

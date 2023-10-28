@@ -111,7 +111,7 @@ func (n *node) Start(bootstrapNodes []string, isMiner bool) error {
 	// TODO: adjust logger itself to show specific info, eg. node info, blockchain info, etc.
 	go n.tryConnect(n.tryConnectQuitCh, false)
 	go n.ping(n.pingQuitCh, false)
-	go n.showNodeInfo(n.showNodeInfoQuitCh, false, true)
+	go n.showNodeInfo(n.showNodeInfoQuitCh, false, false)
 
 	if len(bootstrapNodes) > 0 {
 		go func() {
