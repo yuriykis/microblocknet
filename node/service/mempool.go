@@ -4,7 +4,7 @@ import (
 	"sync"
 
 	"github.com/yuriykis/microblocknet/common/proto"
-	"github.com/yuriykis/microblocknet/node/types"
+	"github.com/yuriykis/microblocknet/node/secure"
 )
 
 type Mempool struct {
@@ -21,14 +21,14 @@ func NewMempool() *Mempool {
 func (m *Mempool) Add(tx *proto.Transaction) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	hashTx := string(types.HashTransaction(tx))
+	hashTx := string(secure.HashTransaction(tx))
 	m.txs[hashTx] = tx
 }
 
 func (m *Mempool) Contains(tx *proto.Transaction) bool {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
-	hashTx := string(types.HashTransaction(tx))
+	hashTx := string(secure.HashTransaction(tx))
 	_, ok := m.txs[hashTx]
 	return ok
 }
@@ -42,7 +42,7 @@ func (m *Mempool) Clear() {
 func (m *Mempool) Remove(tx *proto.Transaction) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	hashTx := string(types.HashTransaction(tx))
+	hashTx := string(secure.HashTransaction(tx))
 	delete(m.txs, hashTx)
 }
 

@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/yuriykis/microblocknet/common/proto"
-	"github.com/yuriykis/microblocknet/node/types"
+	"github.com/yuriykis/microblocknet/node/secure"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -25,7 +25,7 @@ func (m *MemoryTxStore) Put(tx *proto.Transaction) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	hashTx := types.HashTransaction(tx)
+	hashTx := secure.HashTransaction(tx)
 	m.txs[hashTx] = tx
 	return nil
 }

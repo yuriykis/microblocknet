@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/yuriykis/microblocknet/common/proto"
-	"github.com/yuriykis/microblocknet/node/types"
+	"github.com/yuriykis/microblocknet/node/secure"
 )
 
 type MemoryBlockStore struct {
@@ -23,7 +23,7 @@ func (m *MemoryBlockStore) Put(block *proto.Block) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	hash := types.HashBlock(block)
+	hash := secure.HashBlock(block)
 	m.blocks[hash] = block
 	return nil
 }

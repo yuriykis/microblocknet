@@ -9,8 +9,8 @@ import (
 
 	"github.com/yuriykis/microblocknet/common/crypto"
 	"github.com/yuriykis/microblocknet/common/proto"
+	"github.com/yuriykis/microblocknet/node/secure"
 	"github.com/yuriykis/microblocknet/node/service"
-	"github.com/yuriykis/microblocknet/node/types"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -114,7 +114,7 @@ func makeTransaction(endpoint string, n service.Service, height int, currentValu
 	}
 
 	txInput := &proto.TxInput{
-		PrevTxHash: []byte(types.HashTransaction(prevBlockTx)),
+		PrevTxHash: []byte(secure.HashTransaction(prevBlockTx)),
 		PublicKey:  myPrivKey.PublicKey().Bytes(),
 		OutIndex:   myUTXOs[0].OutIndex,
 	}
@@ -130,7 +130,7 @@ func makeTransaction(endpoint string, n service.Service, height int, currentValu
 		Inputs:  []*proto.TxInput{txInput},
 		Outputs: []*proto.TxOutput{txOutput1, txOutput2},
 	}
-	sig := types.SignTransaction(tx, myPrivKey)
+	sig := secure.SignTransaction(tx, myPrivKey)
 	tx.Inputs[0].Signature = sig.Bytes()
 
 	ctx := context.Background()

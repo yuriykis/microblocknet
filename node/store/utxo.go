@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/yuriykis/microblocknet/common/proto"
-	"github.com/yuriykis/microblocknet/node/types"
+	"github.com/yuriykis/microblocknet/node/secure"
 )
 
 type MemoryUTXOStore struct {
@@ -23,7 +23,7 @@ func (m *MemoryUTXOStore) Put(utxo *proto.UTXO) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	key := types.MakeUTXOKey(utxo.TxHash, int(utxo.OutIndex))
+	key := secure.MakeUTXOKey(utxo.TxHash, int(utxo.OutIndex))
 
 	m.utxos[key] = utxo
 

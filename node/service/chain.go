@@ -7,8 +7,8 @@ import (
 
 	"github.com/yuriykis/microblocknet/common/crypto"
 	"github.com/yuriykis/microblocknet/common/proto"
+	"github.com/yuriykis/microblocknet/node/secure"
 	"github.com/yuriykis/microblocknet/node/store"
-	"github.com/yuriykis/microblocknet/node/types"
 )
 
 type HeadersList struct {
@@ -87,7 +87,7 @@ func (c *Chain) addBlock(block *proto.Block) error {
 }
 
 func (c *Chain) makeUTXOs(tx *proto.Transaction) error {
-	txHash := types.HashTransaction(tx)
+	txHash := secure.HashTransaction(tx)
 	for index, output := range tx.Outputs {
 		utxo := &proto.UTXO{
 			TxHash:   []byte(txHash),
@@ -100,7 +100,7 @@ func (c *Chain) makeUTXOs(tx *proto.Transaction) error {
 		}
 	}
 	for _, input := range tx.Inputs {
-		utxoKey := types.MakeUTXOKey(input.PrevTxHash, int(input.OutIndex))
+		utxoKey := secure.MakeUTXOKey(input.PrevTxHash, int(input.OutIndex))
 		utxo, err := c.utxoStore.Get(utxoKey)
 		if err != nil {
 			return err
@@ -114,7 +114,7 @@ func (c *Chain) makeUTXOs(tx *proto.Transaction) error {
 }
 
 func (c *Chain) ValidateBlock(b *proto.Block) error {
-	if !types.VerifyBlock(b) {
+	if !secure.VerifyBlock(b) {
 		return fmt.Errorf("block is not valid")
 	}
 
@@ -129,7 +129,7 @@ func (c *Chain) ValidateBlock(b *proto.Block) error {
 			currentBlock.Header.Height,
 		)
 	}
-	currentBlockHash := types.HashBlock(currentBlock)
+	currentBlockHash := secure.HashBlock(currentBlock)
 	if !bytes.Equal(b.Header.PrevBlockHash, []byte(currentBlockHash)) {
 		return fmt.Errorf(
 			"block prev hash %s is not equal to current hash %s",
@@ -146,12 +146,12 @@ func (c *Chain) ValidateBlock(b *proto.Block) error {
 }
 
 func (c *Chain) ValidateTransaction(tx *proto.Transaction) error {
-	if !types.VerifyTransaction(tx) {
+	if !secure.VerifyTransaction(tx) {
 		return fmt.Errorf("transaction is not valid")
 	}
 	inputsSum := int64(0)
 	for _, input := range tx.Inputs {
-		utxoKey := types.MakeUTXOKey(input.PrevTxHash, int(input.OutIndex))
+		utxoKey := secure.MakeUTXOKey(input.PrevTxHash, int(input.OutIndex))
 		utxo, err := c.utxoStore.Get(utxoKey)
 		if err != nil {
 			return err
@@ -182,7 +182,7 @@ func (c *Chain) GetBlockByHeight(height int) (*proto.Block, error) {
 	if err != nil {
 		return nil, err
 	}
-	hash := types.HashHeader(header)
+	hash := secure.HashHeader(header)
 	block, err := c.blockStore.Get(hash)
 	if err != nil {
 		return nil, err
@@ -214,7 +214,7 @@ func genesisBlock() *proto.Block {
 	}
 	firstBlock.Transactions = append(firstBlock.Transactions, firstTx)
 
-	types.SignBlock(firstBlock, privKey)
+	secure.SignBlock(firstBlock, privKey)
 
 	return firstBlock
 }

@@ -8,8 +8,8 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/yuriykis/microblocknet/common/proto"
 	"github.com/yuriykis/microblocknet/common/requests"
+	"github.com/yuriykis/microblocknet/node/secure"
 	nodeapi "github.com/yuriykis/microblocknet/node/service/api_client"
-	"github.com/yuriykis/microblocknet/node/types"
 )
 
 type Handler interface {
@@ -114,7 +114,7 @@ func (h *handler) Transaction(c *gin.Context) {
 		prevBlock := prevBlockRes.Block
 		prevBlockTx := prevBlock.GetTransactions()[len(prevBlock.GetTransactions())-1]
 		txInput := &proto.TxInput{
-			PrevTxHash: []byte(types.HashTransaction(prevBlockTx)),
+			PrevTxHash: []byte(secure.HashTransaction(prevBlockTx)),
 			PublicKey:  tReq.FromAddress,
 			OutIndex:   clientUTXOs.UTXOs[0].OutIndex,
 		}

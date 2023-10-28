@@ -8,9 +8,9 @@ import (
 
 	"github.com/yuriykis/microblocknet/common/crypto"
 	"github.com/yuriykis/microblocknet/common/proto"
+	"github.com/yuriykis/microblocknet/node/secure"
 	"github.com/yuriykis/microblocknet/node/service/client"
 	"github.com/yuriykis/microblocknet/node/store"
-	"github.com/yuriykis/microblocknet/node/types"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	grpcPeer "google.golang.org/grpc/peer"
@@ -268,7 +268,7 @@ func (n *node) mineBlock(newBlockCh chan<- *proto.Block, stopMineBlockCh <-chan 
 	nonce := uint64(0)
 	block := &proto.Block{
 		Header: &proto.Header{
-			PrevBlockHash: []byte(types.HashBlock(lastBlock)), // TODO: check if this is correct
+			PrevBlockHash: []byte(secure.HashBlock(lastBlock)), // TODO: check if this is correct
 			Timestamp:     time.Now().Unix(),
 			Height:        lastBlock.Header.Height + 1,
 		},
@@ -287,9 +287,9 @@ mine:
 			}
 			n.logger.Infof("node: %s, mining block\n", n)
 			block.Header.Nonce = nonce
-			blockHash := types.HashBlock(block)
+			blockHash := secure.HashBlock(block)
 			fmt.Printf("blockHash: %s\n", blockHash)
-			if types.VerifyBlockHash(block) {
+			if secure.VerifyBlockHash(block) {
 				n.logger.Infof("node: %s, mined block: %s\n", n, blockHash)
 				newBlockCh <- block
 				return
@@ -323,10 +323,10 @@ func (n *node) minerLoop() {
 					break mining
 				}
 				block.PublicKey = n.PrivateKey.PublicKey().Bytes()
-				types.SignBlock(block, n.PrivateKey)
+				secure.SignBlock(block, n.PrivateKey)
 
 				n.chain.AddBlock(block)
-				n.logger.Infof("node: %s, broadcast block: %s\n", n, types.HashBlock(block))
+				n.logger.Infof("node: %s, broadcast block: %s\n", n, secure.HashBlock(block))
 				n.broadcast(block)
 				break mining
 			default:

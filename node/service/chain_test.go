@@ -6,8 +6,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/yuriykis/microblocknet/common/crypto"
 	"github.com/yuriykis/microblocknet/common/proto"
+	"github.com/yuriykis/microblocknet/node/secure"
 	"github.com/yuriykis/microblocknet/node/store"
-	"github.com/yuriykis/microblocknet/node/types"
 	"github.com/yuriykis/microblocknet/node/util"
 )
 
@@ -33,7 +33,7 @@ func TestChainAddBlock(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		block := util.RandomBlock()
 		chain.addBlock(block)
-		hashBlock := types.HashBlock(block)
+		hashBlock := secure.HashBlock(block)
 		blockFromStore, err := chain.GetBlockByHash(hashBlock)
 		assert.NoError(t, err)
 		assert.Equal(t, block, blockFromStore)
@@ -63,7 +63,7 @@ func TestChainAddBlockWithTxs(t *testing.T) {
 		inputs := []*proto.TxInput{
 			{
 				PublicKey:  myPrivKey.PublicKey().Bytes(),
-				PrevTxHash: []byte(types.HashTransaction(prevBlockTx)),
+				PrevTxHash: []byte(secure.HashTransaction(prevBlockTx)),
 				OutIndex:   myUTXOs[0].OutIndex,
 			},
 		}
@@ -82,14 +82,14 @@ func TestChainAddBlockWithTxs(t *testing.T) {
 			Inputs:  inputs,
 			Outputs: outputs,
 		}
-		sig := types.SignTransaction(tx, myPrivKey)
+		sig := secure.SignTransaction(tx, myPrivKey)
 		tx.Inputs[0].Signature = sig.Bytes()
 
 		block.Transactions = append(block.Transactions, tx)
-		block.Header.PrevBlockHash = []byte(types.HashBlock(prevBlock))
+		block.Header.PrevBlockHash = []byte(secure.HashBlock(prevBlock))
 		block.Header.Height = int32(i + 1)
 
-		types.SignBlock(block, myPrivKey)
+		secure.SignBlock(block, myPrivKey)
 
 		err = chain.AddBlock(block)
 		assert.Nil(t, err)
