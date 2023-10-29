@@ -25,12 +25,14 @@ const (
 )
 
 type Service interface {
-	Start(bootstrapNodes []string, isMiner bool) error
-	Stop() error
-	GetBlockByHeight(height int) (*proto.Block, error)
-	GetUTXOsByAddress(address []byte) ([]*proto.UTXO, error)
-	BootstrapNetwork(addrs []string) error
-	PeersAddrs() []string
+	Start(ctx context.Context, bootstrapNodes []string, isMiner bool) error
+	Stop(ctx context.Context) error
+	GetBlockByHeight(ctx context.Context, height int) (*proto.Block, error)
+	GetUTXOsByAddress(ctx context.Context, address []byte) ([]*proto.UTXO, error)
+	BootstrapNetwork(ctx context.Context, addrs []string) error
+	PeersAddrs(ctx context.Context) []string
+
+	Node
 }
 
 type Node interface {
@@ -106,7 +108,7 @@ func New(listenAddress string, apiListenAddress string) Service {
 	}
 }
 
-func (n *node) Start(bootstrapNodes []string, isMiner bool) error {
+func (n *node) Start(ctx context.Context, bootstrapNodes []string, isMiner bool) error {
 
 	// TODO: adjust logger itself to show specific info, eg. node info, blockchain info, etc.
 	go n.tryConnect(n.tryConnectQuitCh, false)
@@ -115,7 +117,7 @@ func (n *node) Start(bootstrapNodes []string, isMiner bool) error {
 
 	if len(bootstrapNodes) > 0 {
 		go func() {
-			if err := n.BootstrapNetwork(bootstrapNodes); err != nil {
+			if err := n.BootstrapNetwork(context.TODO(), bootstrapNodes); err != nil {
 				n.logger.Errorf("node: %s, failed to bootstrap network: %v", n, err)
 			}
 		}()
@@ -131,12 +133,12 @@ func (n *node) Start(bootstrapNodes []string, isMiner bool) error {
 	go n.transportServer.Start()
 
 	n.apiServer = NewApiServer(n, n.ApiListenAddr)
-	return n.apiServer.Start()
+	return n.apiServer.Start(context.TODO())
 }
 
-func (n *node) Stop() error {
+func (n *node) Stop(ctx context.Context) error {
 	n.shutdown()
-	n.apiServer.Stop()
+	n.apiServer.Stop(context.TODO())
 	return n.transportServer.Stop()
 }
 
@@ -211,11 +213,11 @@ func (n *node) GetBlocks(ctx context.Context, v *proto.Version) (*proto.Blocks, 
 	return blocks, nil
 }
 
-func (n *node) GetBlockByHeight(height int) (*proto.Block, error) {
+func (n *node) GetBlockByHeight(ctx context.Context, height int) (*proto.Block, error) {
 	return n.chain.GetBlockByHeight(height)
 }
 
-func (n *node) GetUTXOsByAddress(address []byte) ([]*proto.UTXO, error) {
+func (n *node) GetUTXOsByAddress(ctx context.Context, address []byte) ([]*proto.UTXO, error) {
 	return n.chain.utxoStore.GetByAddress(address)
 }
 
@@ -223,11 +225,11 @@ func (n *node) Version() *proto.Version {
 	return &proto.Version{
 		Version:       "0.0.1",
 		ListenAddress: n.ListenAddress,
-		Peers:         n.PeersAddrs(),
+		Peers:         n.PeersAddrs(context.TODO()),
 	}
 }
 
-func (n *node) BootstrapNetwork(addrs []string) error {
+func (n *node) BootstrapNetwork(ctx context.Context, addrs []string) error {
 	for _, addr := range addrs {
 		if !n.canConnectWith(addr) {
 			continue
@@ -237,7 +239,7 @@ func (n *node) BootstrapNetwork(addrs []string) error {
 	return nil
 }
 
-func (n *node) PeersAddrs() []string {
+func (n *node) PeersAddrs(ctx context.Context) []string {
 	return n.peers.Addresses()
 }
 
@@ -349,7 +351,7 @@ func (n *node) showNodeInfo(quitCh chan struct{}, netLogging bool, blockchainLog
 			return
 		default:
 			if netLogging {
-				n.logger.Infof("Node %s, peers: %v", n, n.PeersAddrs())
+				n.logger.Infof("Node %s, peers: %v", n, n.PeersAddrs(context.TODO()))
 				n.logger.Infof("Node %s, knownAddrs: %v", n, n.knownAddrs.list())
 				n.logger.Infof("Node %s, mempool: %v", n, n.mempool.list())
 			}
@@ -388,7 +390,7 @@ func (n *node) addPeer(c client.Client, v *proto.Version) {
 
 	if len(v.Peers) > 0 {
 		go func() {
-			if err := n.BootstrapNetwork(v.Peers); err != nil {
+			if err := n.BootstrapNetwork(context.TODO(), v.Peers); err != nil {
 				n.logger.Errorf("node: %s, failed to bootstrap network: %v", n, err)
 			}
 		}()
@@ -531,7 +533,7 @@ func (n *node) canConnectWith(addr string) bool {
 	if addr == n.ListenAddress {
 		return false
 	}
-	for _, peer := range n.PeersAddrs() {
+	for _, peer := range n.PeersAddrs(context.TODO()) {
 		if peer == addr {
 			return false
 		}

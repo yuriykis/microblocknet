@@ -16,7 +16,7 @@ type Handler interface {
 	Healthcheck(c *gin.Context)
 	Block(c *gin.Context)
 	UTXO(c *gin.Context)
-	Transaction(c *gin.Context)
+	InitTransaction(c *gin.Context)
 }
 
 type handler struct {
@@ -78,7 +78,7 @@ func (h *handler) UTXO(c *gin.Context) {
 	}
 }
 
-func (h *handler) Transaction(c *gin.Context) {
+func (h *handler) InitTransaction(c *gin.Context) {
 	var tx *proto.Transaction
 	if c.Request.Method == http.MethodPost {
 		var tReq requests.InitTransactionRequest

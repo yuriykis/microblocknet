@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -10,8 +11,8 @@ import (
 
 // the api server is used to expose the node's functionality the gateway
 type ApiServer interface {
-	Start() error
-	Stop() error
+	Start(ctx context.Context) error
+	Stop(ctx context.Context) error
 }
 
 type apiServer struct {
@@ -31,7 +32,7 @@ func NewApiServer(svc Service, apiListenAddr string) *apiServer {
 	}
 }
 
-func (s *apiServer) Start() error {
+func (s *apiServer) Start(ctx context.Context) error {
 	s.httpServer.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/block":
@@ -51,7 +52,7 @@ func (s *apiServer) Start() error {
 	return s.httpServer.ListenAndServe()
 }
 
-func (s *apiServer) Stop() error {
+func (s *apiServer) Stop(ctx context.Context) error {
 	return s.httpServer.Close()
 }
 
@@ -98,7 +99,7 @@ func handleGetBlockByHeight(svc Service) HTTPFunc {
 				Err:  fmt.Errorf("failed to decode request body: %w", err),
 			}
 		}
-		block, err := svc.GetBlockByHeight(req.Height)
+		block, err := svc.GetBlockByHeight(context.Background(), req.Height)
 		if err != nil {
 			return APIError{
 				Code: http.StatusInternalServerError,
@@ -122,7 +123,7 @@ func handleGetUTXOsByAddress(svc Service) HTTPFunc {
 				Err:  fmt.Errorf("failed to decode request body: %w", err),
 			}
 		}
-		utxos, err := svc.GetUTXOsByAddress(req.Address)
+		utxos, err := svc.GetUTXOsByAddress(context.Background(), req.Address)
 		if err != nil {
 			fmt.Println(err)
 			return APIError{

@@ -33,7 +33,7 @@ func (c *HTTPClient) InitTransaction(
 	ctx context.Context,
 	tReq requests.InitTransactionRequest,
 ) (*requests.InitTransactionResponse, error) {
-	endpoint := c.endpoint + "/transaction"
+	endpoint := c.endpoint + "/transaction/init"
 	b, err := json.Marshal(&tReq)
 	if err != nil {
 		return nil, err

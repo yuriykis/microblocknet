@@ -48,7 +48,7 @@ func main() {
 
 	n := service.New(listenAddr, apiListenAddr)
 
-	log.Fatal(n.Start(bootstrapNodes, false))
+	log.Fatal(n.Start(context.TODO(), bootstrapNodes, false))
 }
 
 // for debugging
@@ -61,10 +61,10 @@ func debug() {
 		n4 = service.New(":3003", ":4003")
 	)
 
-	go n1.Start([]string{}, true)
-	go n2.Start([]string{":3000"}, false)
-	go n3.Start([]string{":3000"}, false)
-	go n4.Start([]string{":3001"}, false)
+	go n1.Start(context.TODO(), []string{}, true)
+	go n2.Start(context.TODO(), []string{":3000"}, false)
+	go n3.Start(context.TODO(), []string{":3000"}, false)
+	go n4.Start(context.TODO(), []string{":3001"}, false)
 
 	go sendTransaction(n1, 3, 0, 99000)
 	// go sendTransaction(n2, 20, 1, 98000)
@@ -77,7 +77,7 @@ func debug() {
 
 func stop(n service.Service, duration time.Duration) {
 	time.Sleep(duration * time.Second)
-	n.Stop()
+	n.Stop(context.TODO())
 }
 
 func sendTransaction(n service.Service, duration time.Duration, height int, currentValue int64) {
@@ -103,12 +103,15 @@ func makeTransaction(endpoint string, n service.Service, height int, currentValu
 	receiverAddress := crypto.GeneratePrivateKey().PublicKey().Address()
 
 	// TODO: we ned to wait for the previous block to be mined
-	prevBlock, err := n.GetBlockByHeight(height)
+	prevBlock, err := n.GetBlockByHeight(context.TODO(), height)
 	if err != nil {
 		log.Fatal(err)
 	}
 	prevBlockTx := prevBlock.GetTransactions()[len(prevBlock.GetTransactions())-1]
-	myUTXOs, err := n.GetUTXOsByAddress(crypto.PrivateKeyFromString(godSeed).PublicKey().Address().Bytes())
+	myUTXOs, err := n.GetUTXOsByAddress(
+		context.TODO(),
+		crypto.PrivateKeyFromString(godSeed).PublicKey().Address().Bytes(),
+	)
 	if err != nil {
 		log.Fatal(err)
 	}
