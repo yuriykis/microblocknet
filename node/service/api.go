@@ -39,6 +39,8 @@ func (s *apiServer) Start(ctx context.Context) error {
 			makeHTTPHandlerFunc(handleGetBlockByHeight(s.svc))(w, r)
 		case "/utxo":
 			makeHTTPHandlerFunc(handleGetUTXOsByAddress(s.svc))(w, r)
+		case "/transaction":
+			makeHTTPHandlerFunc(handleNewTransaction(s.svc))(w, r)
 		default:
 			writeJSON(
 				w,
@@ -133,6 +135,30 @@ func handleGetUTXOsByAddress(svc Service) HTTPFunc {
 		}
 		return writeJSON(w, http.StatusOK, requests.GetUTXOsByAddressResponse{
 			UTXOs: utxos,
+		})
+	}
+}
+
+func handleNewTransaction(svc Service) HTTPFunc {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		req := requests.NewTransactionRequest{}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			fmt.Println(err)
+			return APIError{
+				Code: http.StatusBadRequest,
+				Err:  fmt.Errorf("failed to decode request body: %w", err),
+			}
+		}
+		tx, err := svc.NewTransaction(context.Background(), req.Transaction)
+		if err != nil {
+			fmt.Println(err)
+			return APIError{
+				Code: http.StatusInternalServerError,
+				Err:  fmt.Errorf("failed to create new transaction: %w", err),
+			}
+		}
+		return writeJSON(w, http.StatusOK, requests.NewTransactionResponse{
+			Transaction: tx,
 		})
 	}
 }

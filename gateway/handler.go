@@ -17,6 +17,7 @@ type Handler interface {
 	Block(c *gin.Context)
 	UTXO(c *gin.Context)
 	InitTransaction(c *gin.Context)
+	NewTransaction(c *gin.Context)
 }
 
 type handler struct {
@@ -133,6 +134,24 @@ func (h *handler) InitTransaction(c *gin.Context) {
 	}
 	if tx != nil {
 		c.JSON(http.StatusOK, requests.InitTransactionResponse{
+			Transaction: tx,
+		})
+	}
+}
+
+func (h *handler) NewTransaction(c *gin.Context) {
+	var tx *proto.Transaction
+	if c.Request.Method == http.MethodPost {
+		var tReq requests.NewTransactionRequest
+		if err := c.ShouldBindJSON(&tReq); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+		}
+		tx = tReq.Transaction
+	}
+	if tx != nil {
+		c.JSON(http.StatusOK, requests.NewTransactionResponse{
 			Transaction: tx,
 		})
 	}

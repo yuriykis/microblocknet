@@ -29,6 +29,7 @@ func (s *server) configureRouter() {
 	s.router.GET("/block/:height", s.handler.Block)
 	s.router.GET("/utxo", s.handler.UTXO)
 	s.router.POST("/transaction/init", s.handler.InitTransaction)
+	s.router.POST("/transaction", s.handler.NewTransaction)
 }
 
 func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {

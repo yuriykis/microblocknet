@@ -113,7 +113,7 @@ func (n *node) Start(ctx context.Context, bootstrapNodes []string, isMiner bool)
 	// TODO: adjust logger itself to show specific info, eg. node info, blockchain info, etc.
 	go n.tryConnect(n.tryConnectQuitCh, false)
 	go n.ping(n.pingQuitCh, false)
-	go n.showNodeInfo(n.showNodeInfoQuitCh, false, false)
+	go n.showNodeInfo(n.showNodeInfoQuitCh, false, true)
 
 	if len(bootstrapNodes) > 0 {
 		go func() {

@@ -17,6 +17,7 @@ type Client interface {
 	GetMyUTXOs(ctx context.Context) error
 	GetBlockByHeight(ctx context.Context, height int) (*requests.GetBlockByHeightResponse, error)
 	GetUTXOsByAddress(ctx context.Context) error
+	NewTransaction(ctx context.Context, tReq requests.NewTransactionRequest) (*requests.NewTransactionResponse, error)
 }
 
 type HTTPClient struct {
@@ -52,7 +53,7 @@ func (c *HTTPClient) InitTransaction(
 
 	defer resp.Body.Close()
 	var cResp requests.InitTransactionResponse
-	if err := json.NewDecoder(resp.Body).Decode(&cResp.Transaction); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&cResp); err != nil {
 		return nil, err
 	}
 
@@ -90,6 +91,36 @@ func (c *HTTPClient) GetBlockByHeight(ctx context.Context, height int) (*request
 
 	defer resp.Body.Close()
 	var cResp requests.GetBlockByHeightResponse
+	if err := json.NewDecoder(resp.Body).Decode(&cResp); err != nil {
+		return nil, err
+	}
+
+	return &cResp, nil
+}
+
+func (c *HTTPClient) NewTransaction(
+	ctx context.Context,
+	tReq requests.NewTransactionRequest,
+) (*requests.NewTransactionResponse, error) {
+	endpoint := c.endpoint + "/transaction"
+	b, err := json.Marshal(&tReq)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(b))
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+	var cResp requests.NewTransactionResponse
 	if err := json.NewDecoder(resp.Body).Decode(&cResp); err != nil {
 		return nil, err
 	}

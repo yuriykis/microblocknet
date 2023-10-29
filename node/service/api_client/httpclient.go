@@ -78,3 +78,29 @@ func (c *HTTPClient) PeersAddrs(ctx context.Context) []string {
 	// TODO: implement
 	return nil
 }
+
+func (c *HTTPClient) NewTransaction(
+	ctx context.Context,
+	tReq requests.NewTransactionRequest,
+) (*requests.NewTransactionResponse, error) {
+	b, err := json.Marshal(&tReq)
+	if err != nil {
+		return nil, err
+	}
+	endpoint := c.Endpoint + "/transaction"
+	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(b))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	var cResp requests.NewTransactionResponse
+	if err := json.NewDecoder(resp.Body).Decode(&cResp); err != nil {
+		return nil, err
+	}
+	return &cResp, nil
+}

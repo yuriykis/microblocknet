@@ -12,6 +12,14 @@ type InitTransactionResponse struct {
 	Transaction *proto.Transaction
 }
 
+type NewTransactionRequest struct {
+	Transaction *proto.Transaction
+}
+
+type NewTransactionResponse struct {
+	Transaction *proto.Transaction
+}
+
 type GetMyUTXOsRequest struct {
 	Address []byte
 }

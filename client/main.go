@@ -6,6 +6,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/yuriykis/microblocknet/common/crypto"
+	"github.com/yuriykis/microblocknet/common/proto"
 	"github.com/yuriykis/microblocknet/common/requests"
 	gateway "github.com/yuriykis/microblocknet/gateway/client"
 	"github.com/yuriykis/microblocknet/node/secure"
@@ -29,8 +30,13 @@ func main() {
 		log.Fatal(err)
 	}
 	tx := tResp.Transaction
-	secure.SignTransaction(tx, myKey)
-	fmt.Printf("tx: %+v\n", tx)
+	sig := secure.SignTransaction(tx, myKey)
+	tx.Inputs[0].Signature = sig.Bytes()
+	txRes, err := bc.NewTransaction(context.Background(), tx)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(txRes.Transaction)
 }
 
 type blockchainClient struct {
@@ -53,4 +59,14 @@ func (bc *blockchainClient) InitTransaction(
 		Amount:      t.Amount,
 	}
 	return bc.client.InitTransaction(ctx, req)
+}
+
+func (bc *blockchainClient) NewTransaction(
+	ctx context.Context,
+	t *proto.Transaction,
+) (*requests.NewTransactionResponse, error) {
+	req := requests.NewTransactionRequest{
+		Transaction: t,
+	}
+	return bc.client.NewTransaction(ctx, req)
 }
