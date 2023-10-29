@@ -81,7 +81,7 @@ func (h *handler) UTXO(c *gin.Context) {
 func (h *handler) Transaction(c *gin.Context) {
 	var tx *proto.Transaction
 	if c.Request.Method == http.MethodPost {
-		var tReq requests.CreateTransactionRequest
+		var tReq requests.InitTransactionRequest
 		if err := c.ShouldBindJSON(&tReq); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error": err.Error(),
@@ -132,7 +132,7 @@ func (h *handler) Transaction(c *gin.Context) {
 		}
 	}
 	if tx != nil {
-		c.JSON(http.StatusOK, requests.CreateTransactionResponse{
+		c.JSON(http.StatusOK, requests.InitTransactionResponse{
 			Transaction: tx,
 		})
 	}

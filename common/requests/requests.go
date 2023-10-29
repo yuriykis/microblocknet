@@ -2,13 +2,13 @@ package requests
 
 import "github.com/yuriykis/microblocknet/common/proto"
 
-type CreateTransactionRequest struct {
+type InitTransactionRequest struct {
 	FromAddress []byte
 	ToAddress   []byte
 	Amount      int
 }
 
-type CreateTransactionResponse struct {
+type InitTransactionResponse struct {
 	Transaction *proto.Transaction
 }
 

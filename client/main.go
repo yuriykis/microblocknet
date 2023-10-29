@@ -46,8 +46,8 @@ func newBlockchainClient(c gateway.Client) *blockchainClient {
 func (bc *blockchainClient) InitTransaction(
 	ctx context.Context,
 	t *Transaction,
-) (*requests.CreateTransactionResponse, error) {
-	req := requests.CreateTransactionRequest{
+) (*requests.InitTransactionResponse, error) {
+	req := requests.InitTransactionRequest{
 		FromAddress: t.FromAddress,
 		ToAddress:   t.ToAddress,
 		Amount:      t.Amount,

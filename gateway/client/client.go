@@ -12,8 +12,8 @@ import (
 type Client interface {
 	InitTransaction(
 		ctx context.Context,
-		tReq requests.CreateTransactionRequest,
-	) (*requests.CreateTransactionResponse, error)
+		tReq requests.InitTransactionRequest,
+	) (*requests.InitTransactionResponse, error)
 	GetMyUTXOs(ctx context.Context) error
 	GetBlockByHeight(ctx context.Context, height int) (*requests.GetBlockByHeightResponse, error)
 	GetUTXOsByAddress(ctx context.Context) error
@@ -31,8 +31,8 @@ func NewHTTPClient(endpoint string) *HTTPClient {
 
 func (c *HTTPClient) InitTransaction(
 	ctx context.Context,
-	tReq requests.CreateTransactionRequest,
-) (*requests.CreateTransactionResponse, error) {
+	tReq requests.InitTransactionRequest,
+) (*requests.InitTransactionResponse, error) {
 	endpoint := c.endpoint + "/transaction"
 	b, err := json.Marshal(&tReq)
 	if err != nil {
@@ -51,7 +51,7 @@ func (c *HTTPClient) InitTransaction(
 	}
 
 	defer resp.Body.Close()
-	var cResp requests.CreateTransactionResponse
+	var cResp requests.InitTransactionResponse
 	if err := json.NewDecoder(resp.Body).Decode(&cResp.Transaction); err != nil {
 		return nil, err
 	}
