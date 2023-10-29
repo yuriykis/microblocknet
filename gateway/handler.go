@@ -108,7 +108,7 @@ func (h *handler) InitTransaction(c *gin.Context) {
 				"error": "not enough money",
 			})
 		}
-		prevBlockRes, err := h.nodeapi.GetBlockByHeight(c.Request.Context(), 0)
+		prevBlockRes, err := h.nodeapi.GetBlockByHeight(c.Request.Context(), 1)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -116,7 +116,7 @@ func (h *handler) InitTransaction(c *gin.Context) {
 		prevBlockTx := prevBlock.GetTransactions()[len(prevBlock.GetTransactions())-1]
 		txInput := &proto.TxInput{
 			PrevTxHash: []byte(secure.HashTransaction(prevBlockTx)),
-			PublicKey:  tReq.FromAddress,
+			PublicKey:  tReq.FromPubKey,
 			OutIndex:   clientUTXOs.UTXOs[0].OutIndex,
 		}
 		txOutput1 := &proto.TxOutput{

@@ -16,12 +16,14 @@ const godSeed = "41b84a2eff9a47393471748fbbdff9d20c14badab3d2de59fd8b5e98edd34d1
 
 func main() {
 	myKey := crypto.PrivateKeyFromString(godSeed)
-	myAddr := myKey.PublicKey().Address()
+	myPubKey := myKey.PublicKey()
+	myAddr := myPubKey.Address()
 	receiverAdd := crypto.GeneratePrivateKey().PublicKey().Address()
 
 	bc := newBlockchainClient(gateway.NewHTTPClient("http://localhost:6000"))
 	t := &Transaction{
 		FromAddress: myAddr.Bytes(),
+		FromPubKey:  myPubKey.Bytes(),
 		ToAddress:   receiverAdd.Bytes(),
 		Amount:      100,
 	}
@@ -55,6 +57,7 @@ func (bc *blockchainClient) InitTransaction(
 ) (*requests.InitTransactionResponse, error) {
 	req := requests.InitTransactionRequest{
 		FromAddress: t.FromAddress,
+		FromPubKey:  t.FromPubKey,
 		ToAddress:   t.ToAddress,
 		Amount:      t.Amount,
 	}

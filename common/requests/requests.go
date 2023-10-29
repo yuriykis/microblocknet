@@ -4,6 +4,7 @@ import "github.com/yuriykis/microblocknet/common/proto"
 
 type InitTransactionRequest struct {
 	FromAddress []byte
+	FromPubKey  []byte
 	ToAddress   []byte
 	Amount      int
 }

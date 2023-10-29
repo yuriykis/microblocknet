@@ -66,7 +66,7 @@ func debug() {
 	go n3.Start(context.TODO(), []string{":3000"}, false)
 	go n4.Start(context.TODO(), []string{":3001"}, false)
 
-	go sendTransaction(n1, 3, 0, 99000)
+	go sendTransaction(n1, 5, 0, 99900)
 	// go sendTransaction(n2, 20, 1, 98000)
 
 	// go stop(n1, grpcServer1, 10)
