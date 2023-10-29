@@ -24,6 +24,7 @@ const (
 	maxMiningDuration  = 10 * time.Second
 )
 
+// this definetely needs to be refactored
 type Service interface {
 	Start(ctx context.Context, bootstrapNodes []string, isMiner bool) error
 	Stop(ctx context.Context) error
@@ -31,8 +32,8 @@ type Service interface {
 	GetUTXOsByAddress(ctx context.Context, address []byte) ([]*proto.UTXO, error)
 	BootstrapNetwork(ctx context.Context, addrs []string) error
 	PeersAddrs(ctx context.Context) []string
-
-	Node
+	Address() string
+	DialRemote(address string) (client.Client, *proto.Version, error)
 }
 
 type Node interface {
@@ -146,6 +147,10 @@ func (n *node) String() string {
 	return n.ListenAddress
 }
 
+func (n *node) Address() string {
+	return n.ListenAddress
+}
+
 func (n *node) Handshake(
 	ctx context.Context,
 	v *proto.Version,
@@ -241,6 +246,18 @@ func (n *node) BootstrapNetwork(ctx context.Context, addrs []string) error {
 
 func (n *node) PeersAddrs(ctx context.Context) []string {
 	return n.peers.Addresses()
+}
+
+func (n *node) DialRemote(address string) (client.Client, *proto.Version, error) {
+	client, err := client.NewGRPCClient(address)
+	if err != nil {
+		return nil, nil, err
+	}
+	version, err := n.handshakeClient(client)
+	if err != nil {
+		return nil, nil, err
+	}
+	return client, version, nil
 }
 
 func (n *node) addMempoolToBlock(block *proto.Block) {
@@ -397,18 +414,6 @@ func (n *node) addPeer(c client.Client, v *proto.Version) {
 	}
 }
 
-func (n *node) dialRemote(address string) (client.Client, *proto.Version, error) {
-	client, err := client.NewGRPCClient(address)
-	if err != nil {
-		return nil, nil, err
-	}
-	version, err := n.handshakeClient(client)
-	if err != nil {
-		return nil, nil, err
-	}
-	return client, version, nil
-}
-
 func (n *node) handshakeClient(c client.Client) (*proto.Version, error) {
 	version, err := c.Handshake(context.Background(), n.Version())
 	if err != nil {
@@ -462,7 +467,7 @@ func (n *node) tryConnect(quitCh chan struct{}, logging bool) {
 				if !n.canConnectWith(addr) {
 					continue
 				}
-				client, version, err := n.dialRemote(addr)
+				client, version, err := n.DialRemote(addr)
 				if err != nil {
 					errMsg := fmt.Sprintf(
 						"node: %s, failed to connect to %s, will retry later: %v\n",

@@ -149,7 +149,15 @@ func handleNewTransaction(svc Service) HTTPFunc {
 				Err:  fmt.Errorf("failed to decode request body: %w", err),
 			}
 		}
-		tx, err := svc.NewTransaction(context.Background(), req.Transaction)
+		c, _, err := svc.DialRemote(svc.Address())
+		if err != nil {
+			fmt.Println(err)
+			return APIError{
+				Code: http.StatusInternalServerError,
+				Err:  fmt.Errorf("failed to dial grpc server: %w", err),
+			}
+		}
+		tx, err := c.NewTransaction(context.Background(), req.Transaction)
 		if err != nil {
 			fmt.Println(err)
 			return APIError{

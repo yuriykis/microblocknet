@@ -140,7 +140,6 @@ func (h *handler) InitTransaction(c *gin.Context) {
 }
 
 func (h *handler) NewTransaction(c *gin.Context) {
-	var tx *proto.Transaction
 	if c.Request.Method == http.MethodPost {
 		var tReq requests.NewTransactionRequest
 		if err := c.ShouldBindJSON(&tReq); err != nil {
@@ -148,11 +147,17 @@ func (h *handler) NewTransaction(c *gin.Context) {
 				"error": err.Error(),
 			})
 		}
-		tx = tReq.Transaction
-	}
-	if tx != nil {
-		c.JSON(http.StatusOK, requests.NewTransactionResponse{
-			Transaction: tx,
-		})
+		res, err := h.nodeapi.NewTransaction(c.Request.Context(), tReq)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+		}
+		if res.Transaction == nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "transaction is nil",
+			})
+		}
+		c.JSON(http.StatusOK, res)
 	}
 }
