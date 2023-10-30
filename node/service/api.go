@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"github.com/yuriykis/microblocknet/common/requests"
+	"github.com/yuriykis/microblocknet/node/service/client"
 	grpcPeer "google.golang.org/grpc/peer"
 )
 
@@ -20,20 +21,24 @@ type ApiServer interface {
 type apiServer struct {
 	apiListenAddr string
 	httpServer    *http.Server
+	grpcClient    *client.GRPCClient
 	dr            DataRetriever
-	node          Node
 }
 
-func NewApiServer(dr DataRetriever, n Node, apiListenAddr string) *apiServer {
+func NewApiServer(dr DataRetriever, grpcListenAddress string, apiListenAddr string) (*apiServer, error) {
 	httpServer := &http.Server{
 		Addr: apiListenAddr,
+	}
+	grpcClient, err := client.NewGRPCClient(grpcListenAddress)
+	if err != nil {
+		return nil, err
 	}
 	return &apiServer{
 		apiListenAddr: apiListenAddr,
 		httpServer:    httpServer,
+		grpcClient:    grpcClient,
 		dr:            dr,
-		node:          n,
-	}
+	}, nil
 }
 
 func (s *apiServer) Start(ctx context.Context) error {
@@ -44,7 +49,7 @@ func (s *apiServer) Start(ctx context.Context) error {
 		case "/utxo":
 			makeHTTPHandlerFunc(handleGetUTXOsByAddress(s.dr))(w, r)
 		case "/transaction":
-			makeHTTPHandlerFunc(handleNewTransaction(s.dr, s.node))(w, r)
+			makeHTTPHandlerFunc(handleNewTransaction(s.dr, s.grpcClient))(w, r)
 		default:
 			writeJSON(
 				w,
@@ -143,7 +148,7 @@ func handleGetUTXOsByAddress(dr DataRetriever) HTTPFunc {
 	}
 }
 
-func handleNewTransaction(dr DataRetriever, node Node) HTTPFunc {
+func handleNewTransaction(dr DataRetriever, c *client.GRPCClient) HTTPFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		req := requests.NewTransactionRequest{}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -158,7 +163,7 @@ func handleNewTransaction(dr DataRetriever, node Node) HTTPFunc {
 				IP: net.ParseIP(""),
 			},
 		})
-		tx, err := node.NewTransaction(ctx, req.Transaction)
+		tx, err := c.NewTransaction(ctx, req.Transaction)
 		if err != nil {
 			fmt.Println(err)
 			return APIError{

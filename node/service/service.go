@@ -16,14 +16,11 @@ import (
 )
 
 const (
-	connectInterval    = 5 * time.Second
-	pingInterval       = 6 * time.Second
-	maxConnectAttempts = 100
-	miningInterval     = 5 * time.Second
-	maxMiningDuration  = 10 * time.Second
+	miningInterval         = 5 * time.Second
+	maxMiningDuration      = 10 * time.Second
+	syncBlockchainInterval = 5 * time.Second
 )
 
-// this definetely needs to be refactored
 type Service interface {
 	Start(ctx context.Context, bootstrapNodes []string, isMiner bool) error
 	Stop(ctx context.Context) error
@@ -54,6 +51,18 @@ type node struct {
 
 	transportServer TransportServer
 	apiServer       ApiServer
+
+	quitNode
+}
+
+type quitNode struct {
+	showNodeInfoQuitCh   chan struct{}
+	syncBlockchainQuitCh chan struct{}
+}
+
+func (n *node) shutdown() {
+	close(n.showNodeInfoQuitCh)
+	close(n.syncBlockchainQuitCh)
 }
 
 func New(listenAddress string, apiListenAddress string) Service {
@@ -75,7 +84,8 @@ func New(listenAddress string, apiListenAddress string) Service {
 func (n *node) Start(ctx context.Context, bootstrapNodes []string, isMiner bool) error {
 
 	n.nm.start(bootstrapNodes)
-	// go n.showNodeInfo(n.showNodeInfoQuitCh, false, true)
+	go n.syncBlockchainLoop(n.syncBlockchainQuitCh)
+	go n.showNodeInfo(n.showNodeInfoQuitCh, false, true)
 
 	if isMiner {
 		n.isMiner = isMiner
@@ -86,11 +96,16 @@ func (n *node) Start(ctx context.Context, bootstrapNodes []string, isMiner bool)
 	n.transportServer = NewGRPCNodeServer(n, n.ListenAddress)
 	go n.transportServer.Start()
 
-	n.apiServer = NewApiServer(n.dr, n, n.ApiListenAddr)
+	api, err := NewApiServer(n.dr, n.ListenAddress, n.ApiListenAddr)
+	if err != nil {
+		return err
+	}
+	n.apiServer = api
 	return n.apiServer.Start(context.TODO())
 }
 
 func (n *node) Stop(ctx context.Context) error {
+	n.shutdown()
 	n.nm.stop()
 	n.apiServer.Stop(context.TODO())
 	return n.transportServer.Stop()
@@ -302,12 +317,25 @@ func (n *node) processBlocks(blocks *proto.Blocks) error {
 	}
 	return nil
 }
-func (n *node) syncBlockchain(c client.Client) error {
-	blocks, err := c.GetBlocks(context.Background(), n.nm.version())
-	if err != nil {
-		return err
+
+func (n *node) syncBlockchainLoop(quit chan struct{}) {
+	for {
+		time.Sleep(syncBlockchainInterval)
+		select {
+		case <-quit:
+			n.logger.Infof("node: %s, stopping syncBlockchainLoop", n)
+			return
+		default:
+			for c := range n.nm.peers.peersForPing() {
+				blocks, err := c.GetBlocks(context.Background(), n.nm.version())
+				if err != nil {
+					n.logger.Errorf("node: %s, failed to get blocks from %s: %v", n, c, err)
+					continue
+				}
+				go n.processBlocks(blocks)
+			}
+		}
 	}
-	return n.processBlocks(blocks)
 }
 
 func makeLogger() *zap.SugaredLogger {

@@ -10,6 +10,12 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	connectInterval    = 5 * time.Second
+	pingInterval       = 6 * time.Second
+	maxConnectAttempts = 100
+)
+
 type networkManager struct {
 	ListenAddress string
 	peers         *peersMap
@@ -205,7 +211,6 @@ func (m *networkManager) tryConnect(quitCh chan struct{}, logging bool) {
 					continue
 				}
 				m.addPeer(client, version)
-				// m.syncBlockchain(client)
 			}
 			m.knownAddrs.update(updatedKnownAddrs)
 			time.Sleep(connectInterval)
@@ -238,7 +243,6 @@ func (m *networkManager) ping(quitCh chan struct{}, logging bool) {
 					continue
 				}
 				m.peers.updateLastPingTime(c)
-				// m.syncBlockchain(c)
 			}
 			time.Sleep(pingInterval)
 		}
