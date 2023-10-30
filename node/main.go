@@ -7,12 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/yuriykis/microblocknet/common/crypto"
-	"github.com/yuriykis/microblocknet/common/proto"
-	"github.com/yuriykis/microblocknet/node/secure"
 	"github.com/yuriykis/microblocknet/node/service"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 const (
@@ -66,7 +61,7 @@ func debug() {
 	go n3.Start(context.TODO(), []string{":3000"}, false)
 	go n4.Start(context.TODO(), []string{":3001"}, false)
 
-	go sendTransaction(n1, 5, 0, 99900)
+	// go sendTransaction(n1, 5, 0, 99900)
 	// go sendTransaction(n2, 20, 1, 98000)
 
 	// go stop(n1, grpcServer1, 10)
@@ -80,62 +75,62 @@ func stop(n service.Service, duration time.Duration) {
 	n.Stop(context.TODO())
 }
 
-func sendTransaction(n service.Service, duration time.Duration, height int, currentValue int64) {
-	time.Sleep(duration * time.Second)
-	makeTransaction(":3000", n, height, currentValue)
-}
+// func sendTransaction(n service.Service, duration time.Duration, height int, currentValue int64) {
+// 	time.Sleep(duration * time.Second)
+// 	makeTransaction(":3000", n, height, currentValue)
+// }
 
-func makeTransaction(endpoint string, n service.Service, height int, currentValue int64) {
-	conn, err := grpc.Dial(
-		endpoint,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-	c := proto.NewNodeClient(conn)
-	defer conn.Close()
+// func makeTransaction(endpoint string, n service.Service, height int, currentValue int64) {
+// 	conn, err := grpc.Dial(
+// 		endpoint,
+// 		grpc.WithTransportCredentials(insecure.NewCredentials()),
+// 	)
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+// 	c := proto.NewNodeClient(conn)
+// 	defer conn.Close()
 
-	// myPrivKey := crypto.GeneratePrivateKey()
-	myPrivKey := crypto.PrivateKeyFromString(godSeed)
-	myAddress := myPrivKey.PublicKey().Address()
+// 	// myPrivKey := crypto.GeneratePrivateKey()
+// 	myPrivKey := crypto.PrivateKeyFromString(godSeed)
+// 	myAddress := myPrivKey.PublicKey().Address()
 
-	receiverAddress := crypto.GeneratePrivateKey().PublicKey().Address()
+// 	receiverAddress := crypto.GeneratePrivateKey().PublicKey().Address()
 
-	// TODO: we ned to wait for the previous block to be mined
-	prevBlock, err := n.GetBlockByHeight(context.TODO(), height)
-	if err != nil {
-		log.Fatal(err)
-	}
-	prevBlockTx := prevBlock.GetTransactions()[len(prevBlock.GetTransactions())-1]
-	myUTXOs, err := n.GetUTXOsByAddress(
-		context.TODO(),
-		crypto.PrivateKeyFromString(godSeed).PublicKey().Address().Bytes(),
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
+// 	// TODO: we ned to wait for the previous block to be mined
+// 	prevBlock, err := n.GetBlockByHeight(context.TODO(), height)
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+// 	prevBlockTx := prevBlock.GetTransactions()[len(prevBlock.GetTransactions())-1]
+// 	myUTXOs, err := n.GetUTXOsByAddress(
+// 		context.TODO(),
+// 		crypto.PrivateKeyFromString(godSeed).PublicKey().Address().Bytes(),
+// 	)
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
 
-	txInput := &proto.TxInput{
-		PrevTxHash: []byte(secure.HashTransaction(prevBlockTx)),
-		PublicKey:  myPrivKey.PublicKey().Bytes(),
-		OutIndex:   myUTXOs[0].OutIndex,
-	}
-	txOutput1 := &proto.TxOutput{
-		Value:   100,
-		Address: receiverAddress.Bytes(),
-	}
-	txOutput2 := &proto.TxOutput{
-		Value:   currentValue,
-		Address: myAddress.Bytes(),
-	}
-	tx := &proto.Transaction{
-		Inputs:  []*proto.TxInput{txInput},
-		Outputs: []*proto.TxOutput{txOutput1, txOutput2},
-	}
-	sig := secure.SignTransaction(tx, myPrivKey)
-	tx.Inputs[0].Signature = sig.Bytes()
+// 	txInput := &proto.TxInput{
+// 		PrevTxHash: []byte(secure.HashTransaction(prevBlockTx)),
+// 		PublicKey:  myPrivKey.PublicKey().Bytes(),
+// 		OutIndex:   myUTXOs[0].OutIndex,
+// 	}
+// 	txOutput1 := &proto.TxOutput{
+// 		Value:   100,
+// 		Address: receiverAddress.Bytes(),
+// 	}
+// 	txOutput2 := &proto.TxOutput{
+// 		Value:   currentValue,
+// 		Address: myAddress.Bytes(),
+// 	}
+// 	tx := &proto.Transaction{
+// 		Inputs:  []*proto.TxInput{txInput},
+// 		Outputs: []*proto.TxOutput{txOutput1, txOutput2},
+// 	}
+// 	sig := secure.SignTransaction(tx, myPrivKey)
+// 	tx.Inputs[0].Signature = sig.Bytes()
 
-	ctx := context.Background()
-	c.NewTransaction(ctx, tx)
-}
+// 	ctx := context.Background()
+// 	c.NewTransaction(ctx, tx)
+// }

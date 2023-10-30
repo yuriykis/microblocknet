@@ -108,7 +108,7 @@ func (h *handler) InitTransaction(c *gin.Context) {
 				"error": "not enough money",
 			})
 		}
-		prevBlockRes, err := h.nodeapi.GetBlockByHeight(c.Request.Context(), 1)
+		prevBlockRes, err := h.nodeapi.GetBlockByHeight(c.Request.Context(), 0)
 		if err != nil {
 			log.Fatal(err)
 		}

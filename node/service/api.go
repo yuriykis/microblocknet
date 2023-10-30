@@ -4,9 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 
 	"github.com/yuriykis/microblocknet/common/requests"
+	"github.com/yuriykis/microblocknet/node/service/client"
+	grpcPeer "google.golang.org/grpc/peer"
 )
 
 // the api server is used to expose the node's functionality the gateway
@@ -18,29 +21,35 @@ type ApiServer interface {
 type apiServer struct {
 	apiListenAddr string
 	httpServer    *http.Server
-	svc           Service
+	grpcClient    *client.GRPCClient
+	dr            DataRetriever
 }
 
-func NewApiServer(svc Service, apiListenAddr string) *apiServer {
+func NewApiServer(dr DataRetriever, grpcListenAddress string, apiListenAddr string) (*apiServer, error) {
 	httpServer := &http.Server{
 		Addr: apiListenAddr,
+	}
+	grpcClient, err := client.NewGRPCClient(grpcListenAddress)
+	if err != nil {
+		return nil, err
 	}
 	return &apiServer{
 		apiListenAddr: apiListenAddr,
 		httpServer:    httpServer,
-		svc:           svc,
-	}
+		grpcClient:    grpcClient,
+		dr:            dr,
+	}, nil
 }
 
 func (s *apiServer) Start(ctx context.Context) error {
 	s.httpServer.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/block":
-			makeHTTPHandlerFunc(handleGetBlockByHeight(s.svc))(w, r)
+			makeHTTPHandlerFunc(handleGetBlockByHeight(s.dr))(w, r)
 		case "/utxo":
-			makeHTTPHandlerFunc(handleGetUTXOsByAddress(s.svc))(w, r)
+			makeHTTPHandlerFunc(handleGetUTXOsByAddress(s.dr))(w, r)
 		case "/transaction":
-			makeHTTPHandlerFunc(handleNewTransaction(s.svc))(w, r)
+			makeHTTPHandlerFunc(handleNewTransaction(s.dr, s.grpcClient))(w, r)
 		default:
 			writeJSON(
 				w,
@@ -92,7 +101,7 @@ func makeHTTPHandlerFunc(fn HTTPFunc) http.HandlerFunc {
 	}
 }
 
-func handleGetBlockByHeight(svc Service) HTTPFunc {
+func handleGetBlockByHeight(dr DataRetriever) HTTPFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		req := requests.GetBlockByHeightRequest{}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -101,7 +110,7 @@ func handleGetBlockByHeight(svc Service) HTTPFunc {
 				Err:  fmt.Errorf("failed to decode request body: %w", err),
 			}
 		}
-		block, err := svc.GetBlockByHeight(context.Background(), req.Height)
+		block, err := dr.GetBlockByHeight(context.Background(), req.Height)
 		if err != nil {
 			return APIError{
 				Code: http.StatusInternalServerError,
@@ -115,7 +124,7 @@ func handleGetBlockByHeight(svc Service) HTTPFunc {
 	}
 }
 
-func handleGetUTXOsByAddress(svc Service) HTTPFunc {
+func handleGetUTXOsByAddress(dr DataRetriever) HTTPFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		req := requests.GetUTXOsByAddressRequest{}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -125,7 +134,7 @@ func handleGetUTXOsByAddress(svc Service) HTTPFunc {
 				Err:  fmt.Errorf("failed to decode request body: %w", err),
 			}
 		}
-		utxos, err := svc.GetUTXOsByAddress(context.Background(), req.Address)
+		utxos, err := dr.GetUTXOsByAddress(context.Background(), req.Address)
 		if err != nil {
 			fmt.Println(err)
 			return APIError{
@@ -139,7 +148,7 @@ func handleGetUTXOsByAddress(svc Service) HTTPFunc {
 	}
 }
 
-func handleNewTransaction(svc Service) HTTPFunc {
+func handleNewTransaction(dr DataRetriever, c *client.GRPCClient) HTTPFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		req := requests.NewTransactionRequest{}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -149,22 +158,20 @@ func handleNewTransaction(svc Service) HTTPFunc {
 				Err:  fmt.Errorf("failed to decode request body: %w", err),
 			}
 		}
-		c, _, err := svc.DialRemote(svc.Address())
+		ctx := grpcPeer.NewContext(context.Background(), &grpcPeer.Peer{
+			Addr: &net.IPAddr{
+				IP: net.ParseIP(""),
+			},
+		})
+		tx, err := c.NewTransaction(ctx, req.Transaction)
 		if err != nil {
 			fmt.Println(err)
 			return APIError{
 				Code: http.StatusInternalServerError,
-				Err:  fmt.Errorf("failed to dial grpc server: %w", err),
+				Err:  fmt.Errorf("failed to get utxos by address: %w", err),
 			}
 		}
-		tx, err := c.NewTransaction(context.Background(), req.Transaction)
-		if err != nil {
-			fmt.Println(err)
-			return APIError{
-				Code: http.StatusInternalServerError,
-				Err:  fmt.Errorf("failed to create new transaction: %w", err),
-			}
-		}
+
 		return writeJSON(w, http.StatusOK, requests.NewTransactionResponse{
 			Transaction: tx,
 		})

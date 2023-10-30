@@ -10,30 +10,20 @@ import (
 	"github.com/yuriykis/microblocknet/common/proto"
 	"github.com/yuriykis/microblocknet/node/secure"
 	"github.com/yuriykis/microblocknet/node/service/client"
-	"github.com/yuriykis/microblocknet/node/store"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	grpcPeer "google.golang.org/grpc/peer"
 )
 
 const (
-	connectInterval    = 5 * time.Second
-	pingInterval       = 6 * time.Second
-	maxConnectAttempts = 100
-	miningInterval     = 5 * time.Second
-	maxMiningDuration  = 10 * time.Second
+	miningInterval         = 5 * time.Second
+	maxMiningDuration      = 10 * time.Second
+	syncBlockchainInterval = 5 * time.Second
 )
 
-// this definetely needs to be refactored
 type Service interface {
 	Start(ctx context.Context, bootstrapNodes []string, isMiner bool) error
 	Stop(ctx context.Context) error
-	GetBlockByHeight(ctx context.Context, height int) (*proto.Block, error)
-	GetUTXOsByAddress(ctx context.Context, address []byte) ([]*proto.UTXO, error)
-	BootstrapNetwork(ctx context.Context, addrs []string) error
-	PeersAddrs(ctx context.Context) []string
-	Address() string
-	DialRemote(address string) (client.Client, *proto.Version, error)
 }
 
 type Node interface {
@@ -41,18 +31,6 @@ type Node interface {
 	NewTransaction(ctx context.Context, t *proto.Transaction) (*proto.Transaction, error)
 	NewBlock(ctx context.Context, b *proto.Block) (*proto.Block, error)
 	GetBlocks(ctx context.Context, v *proto.Version) (*proto.Blocks, error)
-}
-
-type quit struct {
-	tryConnectQuitCh   chan struct{}
-	pingQuitCh         chan struct{}
-	showNodeInfoQuitCh chan struct{}
-}
-
-func (q *quit) shutdown() {
-	close(q.tryConnectQuitCh)
-	close(q.pingQuitCh)
-	close(q.showNodeInfoQuitCh)
 }
 
 type ServerConfig struct {
@@ -64,29 +42,31 @@ type ServerConfig struct {
 type node struct {
 	ServerConfig
 
-	logger     *zap.SugaredLogger
-	peers      *peersMap
-	knownAddrs *knownAddrs
+	logger *zap.SugaredLogger
 
-	mempool *Mempool
-	chain   *Chain
+	dr DataRetriever
+	nm *networkManager
 
 	isMiner bool
 
 	transportServer TransportServer
 	apiServer       ApiServer
 
-	quit
+	quitNode
+}
+
+type quitNode struct {
+	showNodeInfoQuitCh   chan struct{}
+	syncBlockchainQuitCh chan struct{}
+}
+
+func (n *node) shutdown() {
+	close(n.showNodeInfoQuitCh)
+	close(n.syncBlockchainQuitCh)
 }
 
 func New(listenAddress string, apiListenAddress string) Service {
-	var (
-		txStore    = store.NewMemoryTxStore()
-		blockStore = store.NewMemoryBlockStore()
-		utxoStore  = store.NewMemoryUTXOStore()
-	)
-	chain := NewChain(txStore, blockStore, utxoStore)
-
+	logger := makeLogger()
 	return &node{
 		ServerConfig: ServerConfig{
 			Version:       "0.0.1",
@@ -95,34 +75,17 @@ func New(listenAddress string, apiListenAddress string) Service {
 			PrivateKey:    nil,
 		},
 
-		peers:      NewPeersMap(),
-		logger:     makeLogger(),
-		knownAddrs: newKnownAddrs(),
-		mempool:    NewMempool(),
-		chain:      chain,
-
-		quit: quit{
-			tryConnectQuitCh:   make(chan struct{}),
-			pingQuitCh:         make(chan struct{}),
-			showNodeInfoQuitCh: make(chan struct{}),
-		},
+		logger: logger,
+		dr:     NewDataRetriever(),
+		nm:     NewNetworkManager(listenAddress, logger),
 	}
 }
 
 func (n *node) Start(ctx context.Context, bootstrapNodes []string, isMiner bool) error {
 
-	// TODO: adjust logger itself to show specific info, eg. node info, blockchain info, etc.
-	go n.tryConnect(n.tryConnectQuitCh, false)
-	go n.ping(n.pingQuitCh, false)
+	n.nm.start(bootstrapNodes)
+	go n.syncBlockchainLoop(n.syncBlockchainQuitCh)
 	go n.showNodeInfo(n.showNodeInfoQuitCh, false, true)
-
-	if len(bootstrapNodes) > 0 {
-		go func() {
-			if err := n.BootstrapNetwork(context.TODO(), bootstrapNodes); err != nil {
-				n.logger.Errorf("node: %s, failed to bootstrap network: %v", n, err)
-			}
-		}()
-	}
 
 	if isMiner {
 		n.isMiner = isMiner
@@ -133,12 +96,17 @@ func (n *node) Start(ctx context.Context, bootstrapNodes []string, isMiner bool)
 	n.transportServer = NewGRPCNodeServer(n, n.ListenAddress)
 	go n.transportServer.Start()
 
-	n.apiServer = NewApiServer(n, n.ApiListenAddr)
+	api, err := NewApiServer(n.dr, n.ListenAddress, n.ApiListenAddr)
+	if err != nil {
+		return err
+	}
+	n.apiServer = api
 	return n.apiServer.Start(context.TODO())
 }
 
 func (n *node) Stop(ctx context.Context) error {
 	n.shutdown()
+	n.nm.stop()
 	n.apiServer.Stop(context.TODO())
 	return n.transportServer.Stop()
 }
@@ -159,9 +127,9 @@ func (n *node) Handshake(
 	if err != nil {
 		return nil, err
 	}
-	n.addPeer(c, v)
+	n.nm.addPeer(c, v)
 	n.logger.Infof("node: %s, sending handshake to %s", n, v.ListenAddress)
-	return n.Version(), nil
+	return n.nm.version(), nil
 }
 
 func (n *node) NewTransaction(
@@ -174,14 +142,14 @@ func (n *node) NewTransaction(
 	}
 	n.logger.Infof("node: %s, received transaction from %s", n, peer.Addr.String())
 
-	if n.mempool.Contains(t) {
+	if n.dr.Mempool().Contains(t) {
 		return nil, fmt.Errorf("node: %s, transaction already exists in mempool", n)
 	}
-	n.mempool.Add(t)
+	n.dr.Mempool().Add(t)
 	n.logger.Infof("node: %s, transaction added to mempool", n)
 
 	// check how to broadcast transaction when peer is not available
-	go n.broadcast(t)
+	go n.nm.broadcast(t)
 
 	return t, nil
 }
@@ -193,7 +161,7 @@ func (n *node) NewBlock(ctx context.Context, b *proto.Block) (*proto.Block, erro
 	}
 	n.logger.Infof("node: %s, received block from %s", n, peer.Addr.String())
 
-	if err := n.chain.AddBlock(b); err != nil {
+	if err := n.dr.Chain().AddBlock(b); err != nil {
 		return nil, err
 	}
 	n.logger.Infof("node: %s, block with height %d added to blockchain", n, b.Header.Height)
@@ -201,15 +169,15 @@ func (n *node) NewBlock(ctx context.Context, b *proto.Block) (*proto.Block, erro
 	n.clearMempool(b)
 
 	// check how to broadcast block when peer is not available
-	go n.broadcast(b)
+	go n.nm.broadcast(b)
 
 	return b, nil
 }
 
 func (n *node) GetBlocks(ctx context.Context, v *proto.Version) (*proto.Blocks, error) {
 	blocks := &proto.Blocks{}
-	for i := 0; i < n.chain.Height(); i++ {
-		block, err := n.chain.GetBlockByHeight(i)
+	for i := 0; i < n.dr.Chain().Height(); i++ {
+		block, err := n.dr.Chain().GetBlockByHeight(i)
 		if err != nil {
 			return nil, err
 		}
@@ -218,67 +186,25 @@ func (n *node) GetBlocks(ctx context.Context, v *proto.Version) (*proto.Blocks, 
 	return blocks, nil
 }
 
-func (n *node) GetBlockByHeight(ctx context.Context, height int) (*proto.Block, error) {
-	return n.chain.GetBlockByHeight(height)
-}
-
-func (n *node) GetUTXOsByAddress(ctx context.Context, address []byte) ([]*proto.UTXO, error) {
-	return n.chain.utxoStore.GetByAddress(address)
-}
-
-func (n *node) Version() *proto.Version {
-	return &proto.Version{
-		Version:       "0.0.1",
-		ListenAddress: n.ListenAddress,
-		Peers:         n.PeersAddrs(context.TODO()),
-	}
-}
-
-func (n *node) BootstrapNetwork(ctx context.Context, addrs []string) error {
-	for _, addr := range addrs {
-		if !n.canConnectWith(addr) {
-			continue
-		}
-		n.knownAddrs.append(addr, 0)
-	}
-	return nil
-}
-
-func (n *node) PeersAddrs(ctx context.Context) []string {
-	return n.peers.Addresses()
-}
-
-func (n *node) DialRemote(address string) (client.Client, *proto.Version, error) {
-	client, err := client.NewGRPCClient(address)
-	if err != nil {
-		return nil, nil, err
-	}
-	version, err := n.handshakeClient(client)
-	if err != nil {
-		return nil, nil, err
-	}
-	return client, version, nil
-}
-
 func (n *node) addMempoolToBlock(block *proto.Block) {
-	for _, tx := range n.mempool.list() {
+	for _, tx := range n.dr.Mempool().list() {
 		block.Transactions = append(block.Transactions, tx)
 	}
 
 	// probably we should clear mempool after the block is mined
-	n.mempool.Clear()
+	n.dr.Mempool().Clear()
 }
 
 func (n *node) clearMempool(b *proto.Block) {
 	for _, tx := range b.Transactions {
-		n.mempool.Remove(tx)
+		n.dr.Mempool().Remove(tx)
 	}
 }
 
 func (n *node) mineBlock(newBlockCh chan<- *proto.Block, stopMineBlockCh <-chan struct{}) {
 	n.logger.Infof("node: %s, starting mining block\n", n)
 
-	lastBlock, err := n.chain.GetBlockByHeight(n.chain.Height())
+	lastBlock, err := n.dr.Chain().GetBlockByHeight(n.dr.Chain().Height())
 	if err != nil {
 		n.logger.Errorf("node: %s, failed to get last block: %v", n, err)
 		return
@@ -344,9 +270,9 @@ func (n *node) minerLoop() {
 				block.PublicKey = n.PrivateKey.PublicKey().Bytes()
 				secure.SignBlock(block, n.PrivateKey)
 
-				n.chain.AddBlock(block)
+				n.dr.Chain().AddBlock(block)
 				n.logger.Infof("node: %s, broadcast block: %s\n", n, secure.HashBlock(block))
-				n.broadcast(block)
+				n.nm.broadcast(block)
 				break mining
 			default:
 				continue
@@ -368,15 +294,15 @@ func (n *node) showNodeInfo(quitCh chan struct{}, netLogging bool, blockchainLog
 			return
 		default:
 			if netLogging {
-				n.logger.Infof("Node %s, peers: %v", n, n.PeersAddrs(context.TODO()))
-				n.logger.Infof("Node %s, knownAddrs: %v", n, n.knownAddrs.list())
-				n.logger.Infof("Node %s, mempool: %v", n, n.mempool.list())
+				n.logger.Infof("Node %s, peers: %v", n, n.nm.peersAddrs(context.TODO()))
+				// n.logger.Infof("Node %s, knownAddrs: %v", n, n.knownAddrs.list())
+				n.logger.Infof("Node %s, mempool: %v", n, n.dr.Mempool().list())
 			}
 			if blockchainLogging {
-				n.logger.Infof("Node %s, blockchain height: %d", n, n.chain.Height())
-				n.logger.Infof("Node %s, blocks in blockchain: %v", n, len(n.chain.blockStore.List()))
-				n.logger.Infof("Node %s, transactions in blockchain: %v", n, len(n.chain.txStore.List()))
-				n.logger.Infof("Node %s, utxos in blockchain: %v", n, len(n.chain.utxoStore.List()))
+				n.logger.Infof("Node %s, blockchain height: %d", n, n.dr.Chain().Height())
+				n.logger.Infof("Node %s, blocks in blockchain: %v", n, len(n.dr.Chain().blockStore.List()))
+				n.logger.Infof("Node %s, transactions in blockchain: %v", n, len(n.dr.Chain().txStore.List()))
+				n.logger.Infof("Node %s, utxos in blockchain: %v", n, len(n.dr.Chain().utxoStore.List()))
 			}
 			time.Sleep(3 * time.Second)
 		}
@@ -385,169 +311,31 @@ func (n *node) showNodeInfo(quitCh chan struct{}, netLogging bool, blockchainLog
 
 func (n *node) processBlocks(blocks *proto.Blocks) error {
 	for _, block := range blocks.Blocks {
-		if err := n.chain.AddBlock(block); err != nil {
+		if err := n.dr.Chain().AddBlock(block); err != nil {
 			return err
 		}
 	}
 	return nil
 }
-func (n *node) syncBlockchain(c client.Client) error {
-	blocks, err := c.GetBlocks(context.Background(), n.Version())
-	if err != nil {
-		return err
-	}
-	return n.processBlocks(blocks)
-}
 
-func (n *node) addPeer(c client.Client, v *proto.Version) {
-	if !n.canConnectWith(v.ListenAddress) {
-		return
-	}
-	n.peers.addPeer(c, v)
-
-	if len(v.Peers) > 0 {
-		go func() {
-			if err := n.BootstrapNetwork(context.TODO(), v.Peers); err != nil {
-				n.logger.Errorf("node: %s, failed to bootstrap network: %v", n, err)
-			}
-		}()
-	}
-}
-
-func (n *node) handshakeClient(c client.Client) (*proto.Version, error) {
-	version, err := c.Handshake(context.Background(), n.Version())
-	if err != nil {
-		return nil, err
-	}
-	n.logger.Infof("node: %s, handshake with %s, version: %v", n, c, version)
-	return version, nil
-}
-
-func (n *node) broadcast(msg any) {
-	for c := range n.Peers() {
-		if err := n.sendMsg(c, msg); err != nil {
-			n.logger.Errorf("node: %s, failed to send message to %s: %v", n, c, err)
-		}
-	}
-}
-
-func (n *node) sendMsg(c client.Client, msg any) error {
-	switch m := msg.(type) {
-	case *proto.Transaction:
-		_, err := c.NewTransaction(context.Background(), m)
-		if err != nil {
-			return err
-		}
-	case *proto.Block:
-		_, err := c.NewBlock(context.Background(), m)
-		if err != nil {
-			return err
-		}
-	default:
-		return fmt.Errorf("node: %s, unknown message type: %v", n, msg)
-	}
-	return nil
-}
-
-// TryConnect tries to connect to known addresses
-func (n *node) tryConnect(quitCh chan struct{}, logging bool) {
-	if logging {
-		n.logger.Infof("node: %s, starting tryConnect\n", n)
-	}
+func (n *node) syncBlockchainLoop(quit chan struct{}) {
 	for {
+		time.Sleep(syncBlockchainInterval)
 		select {
-		case <-quitCh:
-			if logging {
-				n.logger.Infof("node: %s, stopping tryConnect\n", n)
-			}
+		case <-quit:
+			n.logger.Infof("node: %s, stopping syncBlockchainLoop", n)
 			return
 		default:
-			updatedKnownAddrs := make(map[string]int, 0)
-			for addr, connectAttempts := range n.knownAddrs.list() {
-				if !n.canConnectWith(addr) {
-					continue
-				}
-				client, version, err := n.DialRemote(addr)
+			for c := range n.nm.peers.peersForPing() {
+				blocks, err := c.GetBlocks(context.Background(), n.nm.version())
 				if err != nil {
-					errMsg := fmt.Sprintf(
-						"node: %s, failed to connect to %s, will retry later: %v\n",
-						n,
-						addr,
-						err)
-					if connectAttempts >= maxConnectAttempts {
-						errMsg = fmt.Sprintf(
-							"node: %s, failed to connect to %s, reached maxConnectAttempts, removing from knownAddrs: %v\n",
-							n,
-							addr,
-							err,
-						)
-					}
-					if logging {
-						n.logger.Errorf(errMsg)
-					}
-					// if the connection attemps is less than maxConnectAttempts, we will try to connect again
-					// otherwise we will remove the address from the known addresses list
-					// by not adding it to the updatedKnownAddrs map
-					if connectAttempts < maxConnectAttempts {
-						updatedKnownAddrs[addr] = connectAttempts + 1
-					}
+					n.logger.Errorf("node: %s, failed to get blocks from %s: %v", n, c, err)
 					continue
 				}
-				n.addPeer(client, version)
-				n.syncBlockchain(client)
+				go n.processBlocks(blocks)
 			}
-			n.knownAddrs.update(updatedKnownAddrs)
-			time.Sleep(connectInterval)
 		}
 	}
-}
-
-// Ping pings all known peers, if peer is not available,
-// it will be removed from the peers list and added to the known addresses list
-func (n *node) ping(quitCh chan struct{}, logging bool) {
-	if logging {
-		n.logger.Infof("node: %s, starting ping\n", n)
-	}
-	for {
-		select {
-		case <-quitCh:
-			if logging {
-				n.logger.Infof("node: %s, stopping ping\n", n)
-			}
-			return
-		default:
-			for c, p := range n.peers.peersForPing() {
-				_, err := n.handshakeClient(c)
-				if err != nil {
-					if logging {
-						n.logger.Errorf("node: %s, failed to ping %s: %v\n", n, c, err)
-					}
-					n.knownAddrs.append(p.ListenAddress, 0)
-					n.peers.removePeer(c)
-					continue
-				}
-				n.peers.updateLastPingTime(c)
-				n.syncBlockchain(c)
-			}
-			time.Sleep(pingInterval)
-		}
-	}
-}
-
-func (n *node) canConnectWith(addr string) bool {
-	if addr == n.ListenAddress {
-		return false
-	}
-	for _, peer := range n.PeersAddrs(context.TODO()) {
-		if peer == addr {
-			return false
-		}
-	}
-	return true
-}
-
-func (n *node) Peers() map[client.Client]*peer {
-	return n.peers.list()
 }
 
 func makeLogger() *zap.SugaredLogger {
