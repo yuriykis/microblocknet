@@ -78,6 +78,11 @@ func New(listenAddress string, apiListenAddress string) Service {
 		logger: logger,
 		dr:     NewDataRetriever(),
 		nm:     NewNetworkManager(listenAddress, logger),
+
+		quitNode: quitNode{
+			showNodeInfoQuitCh:   make(chan struct{}),
+			syncBlockchainQuitCh: make(chan struct{}),
+		},
 	}
 }
 
