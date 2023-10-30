@@ -10,18 +10,6 @@ import (
 	"go.uber.org/zap"
 )
 
-type NetworkManager interface {
-	Start() error
-	Stop() error
-	BootstrapNetwork(ctx context.Context, addrs []string) error
-	PeersAddrs(ctx context.Context) []string
-	Address() string
-	DialRemote(address string) (client.Client, *proto.Version, error)
-	AddPeer(c client.Client, v *proto.Version)
-	Broadcast(msg any)
-	Version() *proto.Version
-}
-
 type networkManager struct {
 	ListenAddress string
 	peers         *peersMap
@@ -31,7 +19,7 @@ type networkManager struct {
 	quit
 }
 
-func NewNetworkManager(listenAddress string, logger *zap.SugaredLogger) NetworkManager {
+func NewNetworkManager(listenAddress string, logger *zap.SugaredLogger) *networkManager {
 	return &networkManager{
 		ListenAddress: listenAddress,
 		peers:         NewPeersMap(),
@@ -48,18 +36,27 @@ func (m *networkManager) String() string {
 	return fmt.Sprintf("networkManager@%s", m.ListenAddress)
 }
 
-func (m *networkManager) Start() error {
+func (m *networkManager) start(bootstrapNodes []string) error {
 	go m.tryConnect(m.tryConnectQuitCh, true)
 	go m.ping(m.pingQuitCh, true)
+
+	if len(bootstrapNodes) > 0 {
+		go func() {
+			if err := m.bootstrapNetwork(context.TODO(), bootstrapNodes); err != nil {
+				m.logger.Errorf("node: %s, failed to bootstrap network: %v", m, err)
+			}
+		}()
+	}
+
 	return nil
 }
 
-func (m *networkManager) Stop() error {
+func (m *networkManager) stop() error {
 	m.shutdown()
 	return nil
 }
 
-func (m *networkManager) BootstrapNetwork(ctx context.Context, addrs []string) error {
+func (m *networkManager) bootstrapNetwork(ctx context.Context, addrs []string) error {
 	for _, addr := range addrs {
 		if !m.canConnectWith(addr) {
 			continue
@@ -69,15 +66,15 @@ func (m *networkManager) BootstrapNetwork(ctx context.Context, addrs []string) e
 	return nil
 }
 
-func (m *networkManager) PeersAddrs(ctx context.Context) []string {
+func (m *networkManager) peersAddrs(ctx context.Context) []string {
 	return m.peers.Addresses()
 }
 
-func (m *networkManager) Address() string {
+func (m *networkManager) address() string {
 	return m.ListenAddress
 }
 
-func (m *networkManager) DialRemote(address string) (client.Client, *proto.Version, error) {
+func (m *networkManager) dialRemote(address string) (client.Client, *proto.Version, error) {
 	client, err := client.NewGRPCClient(address)
 	if err != nil {
 		return nil, nil, err
@@ -89,11 +86,11 @@ func (m *networkManager) DialRemote(address string) (client.Client, *proto.Versi
 	return client, version, nil
 }
 
-func (m *networkManager) Version() *proto.Version {
+func (m *networkManager) version() *proto.Version {
 	return &proto.Version{
 		Version:       "0.0.1",
 		ListenAddress: m.ListenAddress,
-		Peers:         m.PeersAddrs(context.TODO()),
+		Peers:         m.peersAddrs(context.TODO()),
 	}
 }
 
@@ -105,7 +102,7 @@ func (m *networkManager) canConnectWith(addr string) bool {
 	if addr == m.ListenAddress {
 		return false
 	}
-	for _, peer := range m.PeersAddrs(context.TODO()) {
+	for _, peer := range m.peersAddrs(context.TODO()) {
 		if peer == addr {
 			return false
 		}
@@ -114,7 +111,7 @@ func (m *networkManager) canConnectWith(addr string) bool {
 }
 
 func (m *networkManager) handshakeClient(c client.Client) (*proto.Version, error) {
-	version, err := c.Handshake(context.Background(), m.Version())
+	version, err := c.Handshake(context.Background(), m.version())
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +119,7 @@ func (m *networkManager) handshakeClient(c client.Client) (*proto.Version, error
 	return version, nil
 }
 
-func (m *networkManager) AddPeer(c client.Client, v *proto.Version) {
+func (m *networkManager) addPeer(c client.Client, v *proto.Version) {
 	if !m.canConnectWith(v.ListenAddress) {
 		return
 	}
@@ -130,14 +127,14 @@ func (m *networkManager) AddPeer(c client.Client, v *proto.Version) {
 
 	if len(v.Peers) > 0 {
 		go func() {
-			if err := m.BootstrapNetwork(context.TODO(), v.Peers); err != nil {
+			if err := m.bootstrapNetwork(context.TODO(), v.Peers); err != nil {
 				m.logger.Errorf("node: %s, failed to bootstrap network: %v", m, err)
 			}
 		}()
 	}
 }
 
-func (m *networkManager) Broadcast(msg any) {
+func (m *networkManager) broadcast(msg any) {
 	for c := range m.Peers() {
 		if err := m.sendMsg(c, msg); err != nil {
 			m.logger.Errorf("node: %s, failed to send message to %s: %v", m, c, err)
@@ -181,7 +178,7 @@ func (m *networkManager) tryConnect(quitCh chan struct{}, logging bool) {
 				if !m.canConnectWith(addr) {
 					continue
 				}
-				client, version, err := m.DialRemote(addr)
+				client, version, err := m.dialRemote(addr)
 				if err != nil {
 					errMsg := fmt.Sprintf(
 						"node: %s, failed to connect to %s, will retry later: %v\n",
@@ -207,7 +204,7 @@ func (m *networkManager) tryConnect(quitCh chan struct{}, logging bool) {
 					}
 					continue
 				}
-				m.AddPeer(client, version)
+				m.addPeer(client, version)
 				// m.syncBlockchain(client)
 			}
 			m.knownAddrs.update(updatedKnownAddrs)

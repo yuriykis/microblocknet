@@ -48,7 +48,7 @@ type node struct {
 	logger *zap.SugaredLogger
 
 	dr DataRetriever
-	nm NetworkManager
+	nm *networkManager
 
 	isMiner bool
 
@@ -74,16 +74,8 @@ func New(listenAddress string, apiListenAddress string) Service {
 
 func (n *node) Start(ctx context.Context, bootstrapNodes []string, isMiner bool) error {
 
-	n.nm.Start()
+	n.nm.start(bootstrapNodes)
 	// go n.showNodeInfo(n.showNodeInfoQuitCh, false, true)
-
-	if len(bootstrapNodes) > 0 {
-		go func() {
-			if err := n.nm.BootstrapNetwork(context.TODO(), bootstrapNodes); err != nil {
-				n.logger.Errorf("node: %s, failed to bootstrap network: %v", n, err)
-			}
-		}()
-	}
 
 	if isMiner {
 		n.isMiner = isMiner
@@ -94,12 +86,12 @@ func (n *node) Start(ctx context.Context, bootstrapNodes []string, isMiner bool)
 	n.transportServer = NewGRPCNodeServer(n, n.ListenAddress)
 	go n.transportServer.Start()
 
-	n.apiServer = NewApiServer(n, n.ApiListenAddr)
+	n.apiServer = NewApiServer(n.dr, n, n.ApiListenAddr)
 	return n.apiServer.Start(context.TODO())
 }
 
 func (n *node) Stop(ctx context.Context) error {
-	n.nm.Stop()
+	n.nm.stop()
 	n.apiServer.Stop(context.TODO())
 	return n.transportServer.Stop()
 }
@@ -120,9 +112,9 @@ func (n *node) Handshake(
 	if err != nil {
 		return nil, err
 	}
-	n.nm.AddPeer(c, v)
+	n.nm.addPeer(c, v)
 	n.logger.Infof("node: %s, sending handshake to %s", n, v.ListenAddress)
-	return n.nm.Version(), nil
+	return n.nm.version(), nil
 }
 
 func (n *node) NewTransaction(
@@ -142,7 +134,7 @@ func (n *node) NewTransaction(
 	n.logger.Infof("node: %s, transaction added to mempool", n)
 
 	// check how to broadcast transaction when peer is not available
-	go n.nm.Broadcast(t)
+	go n.nm.broadcast(t)
 
 	return t, nil
 }
@@ -162,7 +154,7 @@ func (n *node) NewBlock(ctx context.Context, b *proto.Block) (*proto.Block, erro
 	n.clearMempool(b)
 
 	// check how to broadcast block when peer is not available
-	go n.nm.Broadcast(b)
+	go n.nm.broadcast(b)
 
 	return b, nil
 }
@@ -265,7 +257,7 @@ func (n *node) minerLoop() {
 
 				n.dr.Chain().AddBlock(block)
 				n.logger.Infof("node: %s, broadcast block: %s\n", n, secure.HashBlock(block))
-				n.nm.Broadcast(block)
+				n.nm.broadcast(block)
 				break mining
 			default:
 				continue
@@ -287,15 +279,15 @@ func (n *node) showNodeInfo(quitCh chan struct{}, netLogging bool, blockchainLog
 			return
 		default:
 			if netLogging {
-				n.logger.Infof("Node %s, peers: %v", n, n.PeersAddrs(context.TODO()))
-				n.logger.Infof("Node %s, knownAddrs: %v", n, n.knownAddrs.list())
-				n.logger.Infof("Node %s, mempool: %v", n, n.mempool.list())
+				n.logger.Infof("Node %s, peers: %v", n, n.nm.peersAddrs(context.TODO()))
+				// n.logger.Infof("Node %s, knownAddrs: %v", n, n.knownAddrs.list())
+				n.logger.Infof("Node %s, mempool: %v", n, n.dr.Mempool().list())
 			}
 			if blockchainLogging {
-				n.logger.Infof("Node %s, blockchain height: %d", n, n.chain.Height())
-				n.logger.Infof("Node %s, blocks in blockchain: %v", n, len(n.chain.blockStore.List()))
-				n.logger.Infof("Node %s, transactions in blockchain: %v", n, len(n.chain.txStore.List()))
-				n.logger.Infof("Node %s, utxos in blockchain: %v", n, len(n.chain.utxoStore.List()))
+				n.logger.Infof("Node %s, blockchain height: %d", n, n.dr.Chain().Height())
+				n.logger.Infof("Node %s, blocks in blockchain: %v", n, len(n.dr.Chain().blockStore.List()))
+				n.logger.Infof("Node %s, transactions in blockchain: %v", n, len(n.dr.Chain().txStore.List()))
+				n.logger.Infof("Node %s, utxos in blockchain: %v", n, len(n.dr.Chain().utxoStore.List()))
 			}
 			time.Sleep(3 * time.Second)
 		}
@@ -311,7 +303,7 @@ func (n *node) processBlocks(blocks *proto.Blocks) error {
 	return nil
 }
 func (n *node) syncBlockchain(c client.Client) error {
-	blocks, err := c.GetBlocks(context.Background(), n.nm.Version())
+	blocks, err := c.GetBlocks(context.Background(), n.nm.version())
 	if err != nil {
 		return err
 	}
