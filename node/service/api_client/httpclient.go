@@ -19,30 +19,30 @@ func NewHTTPClient(endpoint string) *HTTPClient {
 	}
 }
 
-func (c *HTTPClient) GetBlockByHeight(ctx context.Context, height int) (*requests.GetBlockByHeightResponse, error) {
+func (c *HTTPClient) GetBlockByHeight(ctx context.Context, height int) (requests.GetBlockByHeightResponse, error) {
 	cReq := requests.GetBlockByHeightRequest{
 		Height: height,
 	}
+	var cResp requests.GetBlockByHeightResponse
 	b, err := json.Marshal(&cReq)
 	if err != nil {
-		return nil, err
+		return cResp, err
 	}
 	endpoint := c.Endpoint + "/block"
 	req, err := http.NewRequest("GET", endpoint, bytes.NewBuffer(b))
 	if err != nil {
-		return nil, err
+		return cResp, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
 	if err != nil {
-		return nil, err
+		return cResp, err
 	}
 	defer resp.Body.Close()
-	var cResp requests.GetBlockByHeightResponse
 	if err := json.NewDecoder(resp.Body).Decode(&cResp); err != nil {
-		return nil, err
+		return cResp, err
 	}
-	return &cResp, nil
+	return cResp, nil
 }
 
 func (c *HTTPClient) GetUTXOsByAddress(
