@@ -50,3 +50,7 @@ type PeersAddrsRequest struct{}
 type PeersAddrsResponse struct {
 	PeersAddrs []string
 }
+
+type GetCurrentHeightResponse struct {
+	Height int
+}

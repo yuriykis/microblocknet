@@ -11,4 +11,5 @@ type Client interface {
 	GetUTXOsByAddress(ctx context.Context, address []byte) (*requests.GetUTXOsByAddressResponse, error)
 	PeersAddrs(ctx context.Context) []string
 	NewTransaction(ctx context.Context, tReq requests.NewTransactionRequest) (requests.NewTransactionResponse, error)
+	Height(ctx context.Context) (requests.GetCurrentHeightResponse, error)
 }

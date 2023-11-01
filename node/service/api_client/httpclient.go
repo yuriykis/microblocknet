@@ -105,3 +105,22 @@ func (c *HTTPClient) NewTransaction(
 	}
 	return cResp, nil
 }
+
+func (c *HTTPClient) Height(ctx context.Context) (requests.GetCurrentHeightResponse, error) {
+	res := requests.GetCurrentHeightResponse{}
+	endpoint := c.Endpoint + "/height"
+	req, err := http.NewRequest("GET", endpoint, nil)
+	if err != nil {
+		return res, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
+	if err != nil {
+		return res, err
+	}
+	defer resp.Body.Close()
+	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
+		return res, err
+	}
+	return res, nil
+}

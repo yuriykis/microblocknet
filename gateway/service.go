@@ -54,7 +54,11 @@ func (s *service) InitTransaction(
 	if totalAmount < t.Amount {
 		return nil, err
 	}
-	prevBlockRes, err := s.nodeapi.GetBlockByHeight(ctx, 0)
+	heightRes, err := s.nodeapi.Height(ctx)
+	if err != nil {
+		return nil, err
+	}
+	prevBlockRes, err := s.nodeapi.GetBlockByHeight(ctx, heightRes.Height)
 	if err != nil {
 		log.Fatal(err)
 	}

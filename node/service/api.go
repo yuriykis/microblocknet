@@ -50,6 +50,8 @@ func (s *apiServer) Start(ctx context.Context) error {
 			makeHTTPHandlerFunc(handleGetUTXOsByAddress(s.dr))(w, r)
 		case "/transaction":
 			makeHTTPHandlerFunc(handleNewTransaction(s.dr, s.grpcClient))(w, r)
+		case "/height":
+			makeHTTPHandlerFunc(handleGetCurrentHeight(s.dr))(w, r)
 		default:
 			writeJSON(
 				w,
@@ -174,6 +176,15 @@ func handleNewTransaction(dr DataRetriever, c *client.GRPCClient) HTTPFunc {
 
 		return writeJSON(w, http.StatusOK, requests.NewTransactionResponse{
 			Transaction: tx,
+		})
+	}
+}
+
+func handleGetCurrentHeight(dr DataRetriever) HTTPFunc {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		height := dr.Chain().headers.Height()
+		return writeJSON(w, http.StatusOK, requests.GetCurrentHeightResponse{
+			Height: height,
 		})
 	}
 }
