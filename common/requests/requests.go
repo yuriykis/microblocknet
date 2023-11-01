@@ -54,3 +54,7 @@ type PeersAddrsResponse struct {
 type GetCurrentHeightResponse struct {
 	Height int
 }
+
+type HealthcheckResponse struct {
+	Healthcheck string
+}

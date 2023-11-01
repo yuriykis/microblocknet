@@ -7,21 +7,20 @@ import (
 	"github.com/yuriykis/microblocknet/common/proto"
 	"github.com/yuriykis/microblocknet/common/requests"
 	"github.com/yuriykis/microblocknet/node/secure"
-	nodeapi "github.com/yuriykis/microblocknet/node/service/api_client"
 )
 
 type service struct {
-	nodeapi nodeapi.Client
+	*nodeapi
 }
 
 func newService() *service {
 	return &service{
-		nodeapi: nodeapi.NewHTTPClient("http://localhost:4000"),
+		nodeapi: newNodeAPI(),
 	}
 }
 
 func (s *service) BlockByHeight(ctx context.Context, height int) (*proto.Block, error) {
-	b, err := s.nodeapi.GetBlockByHeight(ctx, height)
+	b, err := s.nodeApi().GetBlockByHeight(ctx, height)
 	if err != nil {
 		return nil, err
 	}
@@ -29,7 +28,7 @@ func (s *service) BlockByHeight(ctx context.Context, height int) (*proto.Block, 
 }
 
 func (s *service) UTXOsByAddress(ctx context.Context, address []byte) ([]*proto.UTXO, error) {
-	utxos, err := s.nodeapi.GetUTXOsByAddress(ctx, address)
+	utxos, err := s.nodeApi().GetUTXOsByAddress(ctx, address)
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +39,7 @@ func (s *service) InitTransaction(
 	ctx context.Context,
 	t *Transaction,
 ) (*proto.Transaction, error) {
-	clientUTXOs, err := s.nodeapi.GetUTXOsByAddress(ctx, t.FromAddress)
+	clientUTXOs, err := s.nodeApi().GetUTXOsByAddress(ctx, t.FromAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -54,11 +53,11 @@ func (s *service) InitTransaction(
 	if totalAmount < t.Amount {
 		return nil, err
 	}
-	heightRes, err := s.nodeapi.Height(ctx)
+	heightRes, err := s.nodeApi().Height(ctx)
 	if err != nil {
 		return nil, err
 	}
-	prevBlockRes, err := s.nodeapi.GetBlockByHeight(ctx, heightRes.Height)
+	prevBlockRes, err := s.nodeApi().GetBlockByHeight(ctx, heightRes.Height)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -90,7 +89,7 @@ func (s *service) NewTransaction(
 	req := requests.NewTransactionRequest{
 		Transaction: t,
 	}
-	res, err := s.nodeapi.NewTransaction(ctx, req)
+	res, err := s.nodeApi().NewTransaction(ctx, req)
 	if err != nil {
 		return nil, err
 	}

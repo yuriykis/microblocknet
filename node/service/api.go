@@ -52,6 +52,8 @@ func (s *apiServer) Start(ctx context.Context) error {
 			makeHTTPHandlerFunc(handleNewTransaction(s.dr, s.grpcClient))(w, r)
 		case "/height":
 			makeHTTPHandlerFunc(handleGetCurrentHeight(s.dr))(w, r)
+		case "/healthcheck":
+			makeHTTPHandlerFunc(handleHealthCheck())(w, r)
 		default:
 			writeJSON(
 				w,
@@ -186,5 +188,11 @@ func handleGetCurrentHeight(dr DataRetriever) HTTPFunc {
 		return writeJSON(w, http.StatusOK, requests.GetCurrentHeightResponse{
 			Height: height,
 		})
+	}
+}
+
+func handleHealthCheck() HTTPFunc {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		return writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	}
 }

@@ -124,3 +124,22 @@ func (c *HTTPClient) Height(ctx context.Context) (requests.GetCurrentHeightRespo
 	}
 	return res, nil
 }
+
+func (c *HTTPClient) Healthcheck(ctx context.Context) (requests.HealthcheckResponse, error) {
+	res := requests.HealthcheckResponse{}
+	endpoint := c.Endpoint + "/healthcheck"
+	req, err := http.NewRequest("GET", endpoint, nil)
+	if err != nil {
+		return res, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
+	if err != nil {
+		return res, err
+	}
+	defer resp.Body.Close()
+	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
+		return res, err
+	}
+	return res, nil
+}
