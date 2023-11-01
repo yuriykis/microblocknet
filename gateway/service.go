@@ -1,9 +1,8 @@
 package main
 
 import (
-	"net/http"
+	"context"
 
-	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 	"github.com/yuriykis/microblocknet/common/proto"
 	"github.com/yuriykis/microblocknet/common/requests"
@@ -21,39 +20,41 @@ func newService() *service {
 	}
 }
 
-func (s *service) GetBlockByHeight(c *gin.Context, height int) (requests.GetBlockByHeightResponse, error) {
-	return s.nodeapi.GetBlockByHeight(c, height)
+func (s *service) BlockByHeight(ctx context.Context, height int) (*proto.Block, error) {
+	b, err := s.nodeapi.GetBlockByHeight(ctx, height)
+	if err != nil {
+		return nil, err
+	}
+	return b.Block, nil
 }
 
-func (s *service) GetUTXOsByAddress(c *gin.Context, address []byte) (*requests.GetUTXOsByAddressResponse, error) {
-	return s.nodeapi.GetUTXOsByAddress(c, address)
+func (s *service) UTXOsByAddress(ctx context.Context, address []byte) ([]*proto.UTXO, error) {
+	utxos, err := s.nodeapi.GetUTXOsByAddress(ctx, address)
+	if err != nil {
+		return nil, err
+	}
+	return utxos.UTXOs, nil
 }
 
 func (s *service) InitTransaction(
-	c *gin.Context,
-	tReq requests.InitTransactionRequest,
+	ctx context.Context,
+	t *Transaction,
 ) (*proto.Transaction, error) {
-	clientUTXOs, err := s.nodeapi.GetUTXOsByAddress(c.Request.Context(), tReq.FromAddress)
+	clientUTXOs, err := s.nodeapi.GetUTXOsByAddress(ctx, t.FromAddress)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
+		return nil, err
 	}
 	if clientUTXOs == nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "no UTXOs for this address",
-		})
+		return nil, err
 	}
 	var totalAmount int
 	for _, utxo := range clientUTXOs.UTXOs {
 		totalAmount += int(utxo.Output.Value)
 	}
-	if totalAmount < tReq.Amount {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "not enough money",
-		})
+	if totalAmount < t.Amount {
+		return nil, err
 	}
-	prevBlockRes, err := s.nodeapi.GetBlockByHeight(c.Request.Context(), 0)
+	prevBlockRes, err := s.nodeapi.GetBlockByHeight(ctx, 0)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -61,16 +62,16 @@ func (s *service) InitTransaction(
 	prevBlockTx := prevBlock.GetTransactions()[len(prevBlock.GetTransactions())-1]
 	txInput := &proto.TxInput{
 		PrevTxHash: []byte(secure.HashTransaction(prevBlockTx)),
-		PublicKey:  tReq.FromPubKey,
+		PublicKey:  t.FromPubKey,
 		OutIndex:   clientUTXOs.UTXOs[0].OutIndex,
 	}
 	txOutput1 := &proto.TxOutput{
-		Value:   int64(tReq.Amount),
-		Address: tReq.ToAddress,
+		Value:   int64(t.Amount),
+		Address: t.ToAddress,
 	}
 	txOutput2 := &proto.TxOutput{
-		Value:   int64(totalAmount - tReq.Amount),
-		Address: tReq.FromAddress,
+		Value:   int64(totalAmount - t.Amount),
+		Address: t.FromAddress,
 	}
 	return &proto.Transaction{
 		Inputs:  []*proto.TxInput{txInput},
@@ -79,8 +80,15 @@ func (s *service) InitTransaction(
 }
 
 func (s *service) NewTransaction(
-	c *gin.Context,
-	tReq requests.NewTransactionRequest,
-) (requests.NewTransactionResponse, error) {
-	return s.nodeapi.NewTransaction(c, tReq)
+	ctx context.Context,
+	t *proto.Transaction,
+) (*proto.Transaction, error) {
+	req := requests.NewTransactionRequest{
+		Transaction: t,
+	}
+	res, err := s.nodeapi.NewTransaction(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	return res.Transaction, nil
 }
