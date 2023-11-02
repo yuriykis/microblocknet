@@ -95,3 +95,11 @@ func (s *service) NewTransaction(
 	}
 	return res.Transaction, nil
 }
+
+func (s *service) NewNode(ctx context.Context, addr string) error {
+	req := requests.RegisterNodeRequest{
+		Address: addr,
+	}
+	s.NewHost(req.Address)
+	return nil
+}

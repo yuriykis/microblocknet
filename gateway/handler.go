@@ -15,6 +15,7 @@ type Handler interface {
 	UTXO(c *gin.Context)
 	InitTransaction(c *gin.Context)
 	NewTransaction(c *gin.Context)
+	RegisterNode(c *gin.Context)
 }
 
 type handler struct {
@@ -128,4 +129,7 @@ func (h *handler) NewTransaction(c *gin.Context) {
 			Transaction: t,
 		})
 	}
+}
+
+func (h *handler) RegisterNode(c *gin.Context) {
 }
