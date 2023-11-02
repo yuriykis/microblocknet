@@ -132,4 +132,17 @@ func (h *handler) NewTransaction(c *gin.Context) {
 }
 
 func (h *handler) RegisterNode(c *gin.Context) {
+	if c.Request.Method == http.MethodPost {
+		var nReq requests.RegisterNodeRequest
+		if err := c.ShouldBindJSON(&nReq); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+		}
+		if err := h.service.NewNode(c.Request.Context(), nReq.Address); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+		}
+	}
 }
