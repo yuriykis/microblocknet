@@ -19,6 +19,10 @@ func NewHTTPClient(endpoint string) *HTTPClient {
 	}
 }
 
+func (c *HTTPClient) String() string {
+	return c.Endpoint
+}
+
 func (c *HTTPClient) GetBlockByHeight(ctx context.Context, height int) (requests.GetBlockByHeightResponse, error) {
 	cReq := requests.GetBlockByHeightRequest{
 		Height: height,

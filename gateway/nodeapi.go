@@ -1,13 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"math/rand"
 
 	api "github.com/yuriykis/microblocknet/node/service/api_client"
-)
-
-const (
-	nodesNum = 3
 )
 
 type nodeapi struct {
@@ -17,12 +14,8 @@ type nodeapi struct {
 
 func newNodeAPI() *nodeapi {
 	n := &nodeapi{
-		peers: make([]api.Client, 0),
-		knownHosts: []string{
-			"http://localhost:4000",
-			"http://localhost:4001",
-			"http://localhost:4002",
-		},
+		peers:      make([]api.Client, 0),
+		knownHosts: make([]string, 0),
 	}
 	n.makePeers()
 	return n
@@ -41,5 +34,15 @@ func (n *nodeapi) makePeers() {
 }
 
 func (n *nodeapi) nodeApi() api.Client {
-	return n.peers[rand.Intn(nodesNum)]
+	if len(n.peers) == 0 {
+		fmt.Println("No peers available")
+		return nil
+	}
+	peerSelected := n.selectPeer()
+	fmt.Println("Selected peer:", n.peers[peerSelected])
+	return n.peers[peerSelected]
+}
+
+func (n *nodeapi) selectPeer() int {
+	return rand.Intn(len(n.peers))
 }

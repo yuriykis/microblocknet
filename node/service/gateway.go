@@ -7,19 +7,22 @@ import (
 	"net/http"
 
 	"github.com/yuriykis/microblocknet/common/requests"
+	"go.uber.org/zap"
 )
 
-type GatewayClient struct {
+type gatewayClient struct {
 	Endpoint string
+	logger   *zap.SugaredLogger
 }
 
-func NewGatewayClient(endpoint string) *GatewayClient {
-	return &GatewayClient{
+func NewGatewayClient(endpoint string, logger *zap.SugaredLogger) *gatewayClient {
+	return &gatewayClient{
 		Endpoint: endpoint,
+		logger:   logger,
 	}
 }
 
-func (c *GatewayClient) RegisterMe(ctx context.Context, addr string) (requests.RegisterNodeResponse, error) {
+func (c *gatewayClient) RegisterMe(ctx context.Context, addr string) (requests.RegisterNodeResponse, error) {
 	rRes := requests.RegisterNodeResponse{}
 	rReq := requests.RegisterNodeRequest{
 		Address: addr,

@@ -52,6 +52,8 @@ type node struct {
 	transportServer TransportServer
 	apiServer       ApiServer
 
+	gatewayClient
+
 	quitNode
 }
 
@@ -79,6 +81,8 @@ func New(listenAddress string, apiListenAddress string) Service {
 		dr:     NewDataRetriever(),
 		nm:     NewNetworkManager(listenAddress, logger),
 
+		gatewayClient: *NewGatewayClient("http://localhost:6000", logger),
+
 		quitNode: quitNode{
 			showNodeInfoQuitCh:   make(chan struct{}),
 			syncBlockchainQuitCh: make(chan struct{}),
@@ -98,15 +102,17 @@ func (n *node) Start(ctx context.Context, bootstrapNodes []string, isMiner bool)
 		go n.minerLoop()
 	}
 
-	n.transportServer = NewGRPCNodeServer(n, n.ListenAddress)
-	go n.transportServer.Start()
-
 	api, err := NewApiServer(n.dr, n.ListenAddress, n.ApiListenAddr)
 	if err != nil {
 		return err
 	}
 	n.apiServer = api
-	return n.apiServer.Start(context.TODO())
+	go n.apiServer.Start(context.TODO())
+
+	n.registerGateway(ctx)
+
+	n.transportServer = NewGRPCNodeServer(n, n.ListenAddress)
+	return n.transportServer.Start()
 }
 
 func (n *node) Stop(ctx context.Context) error {
@@ -122,6 +128,15 @@ func (n *node) String() string {
 
 func (n *node) Address() string {
 	return n.ListenAddress
+}
+
+func (n *node) registerGateway(ctx context.Context) error {
+	rRes, err := n.gatewayClient.RegisterMe(ctx, n.ApiListenAddr)
+	if err != nil {
+		return err
+	}
+	n.logger.Infof("node: %s, registered with gateway: %s", n, rRes.Success)
+	return nil
 }
 
 func (n *node) Handshake(

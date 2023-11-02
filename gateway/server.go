@@ -30,7 +30,7 @@ func (s *server) configureRouter() {
 	s.router.GET("/utxo", s.handler.UTXO)
 	s.router.POST("/transaction/init", s.handler.InitTransaction)
 	s.router.POST("/transaction", s.handler.NewTransaction)
-	s.router.POST("/node", s.handler.RegisterNode)
+	s.router.POST("/node/register", s.handler.RegisterNode)
 }
 
 func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
