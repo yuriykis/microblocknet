@@ -13,15 +13,20 @@ const (
 var nodeAddrs = []string{"http://localhost:4000", "http://localhost:4001", "http://localhost:4002"}
 
 type nodeapi struct {
-	nodeAdrrs []string
+	peers []api.Client
 }
 
 func newNodeAPI() *nodeapi {
-	return &nodeapi{
-		nodeAdrrs: nodeAddrs,
-	}
+	n := &nodeapi{}
+	n.makePeers()
+	return n
 }
 
+func (n *nodeapi) makePeers() {
+	for _, addr := range nodeAddrs {
+		n.peers = append(n.peers, api.NewHTTPClient(addr))
+	}
+}
 func (n *nodeapi) nodeApi() api.Client {
-	return api.NewHTTPClient(n.nodeAdrrs[rand.Intn(nodesNum)])
+	return n.peers[rand.Intn(nodesNum)]
 }
