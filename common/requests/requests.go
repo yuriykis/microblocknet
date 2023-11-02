@@ -62,3 +62,7 @@ type HealthcheckResponse struct {
 type RegisterNodeRequest struct {
 	Address string
 }
+
+type RegisterNodeResponse struct {
+	Success bool
+}
