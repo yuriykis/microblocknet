@@ -33,6 +33,9 @@ down:
 up-d:
 	@docker compose up -d
 
+up-b:
+	@docker compose up --build
+	
 proto:
 	@protoc --go_out=. --go_opt=paths=source_relative \
 	--go-grpc_out=. --go-grpc_opt=paths=source_relative \
@@ -40,5 +43,6 @@ proto:
 	
 build: proto
 	@docker build -t microblocknet ./node
+	@docker build -t microblocknet-gateway ./gateway
 
 .PHONY: build run test proto build-binary gateway up down up-d

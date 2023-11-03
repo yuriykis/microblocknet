@@ -1,6 +1,15 @@
 version: "3"
 
 services:
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    ports:
+      - "6000:6000"
+    environment:
+      - LISTEN_ADDR=gateway:6000
+      
   node1:
     build:
       context: ./node
@@ -9,6 +18,7 @@ services:
       - "3000:3000"
     environment:
       - LISTEN_ADDR=node1:3000
+      - IS_MINER=true
   
   node2:
     build:

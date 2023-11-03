@@ -7,6 +7,6 @@ RUN go mod download
 
 COPY . .
 
-RUN go build -o bin/microblocknet .
+RUN go build -o bin/gateway .
 
-CMD ["./bin/microblocknet"]
+CMD ["./bin/gateway"]

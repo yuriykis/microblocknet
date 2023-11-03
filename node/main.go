@@ -29,6 +29,7 @@ func main() {
 		apiListenAddr     = os.Getenv("API_LISTEN_ADDR")
 		bootstrapNodesVar = os.Getenv("BOOTSTRAP_NODES")
 		bootstrapNodes    []string
+		isMiner           = os.Getenv("IS_MINER") != ""
 	)
 	if listenAddr == "" {
 		listenAddr = defaultListenAddr
@@ -43,7 +44,7 @@ func main() {
 
 	n := service.New(listenAddr, apiListenAddr)
 
-	log.Fatal(n.Start(context.TODO(), bootstrapNodes, false))
+	log.Fatal(n.Start(context.TODO(), bootstrapNodes, isMiner))
 }
 
 // for debugging

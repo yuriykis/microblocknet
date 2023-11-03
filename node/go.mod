@@ -5,7 +5,7 @@ go 1.21.3
 require (
 	github.com/cbergoon/merkletree v0.2.0
 	github.com/stretchr/testify v1.8.4
-	github.com/yuriykis/microblocknet/common v0.0.0-20231029133724-3833710e6afa
+	github.com/yuriykis/microblocknet/common v0.0.0-20231103073432-e2136edc7b9d
 )
 
 require (
