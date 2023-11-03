@@ -68,7 +68,7 @@ func (n *node) shutdown() {
 	close(n.syncBlockchainQuitCh)
 }
 
-func New(listenAddress string, apiListenAddress string) Service {
+func New(listenAddress string, apiListenAddress string, gatewayAddress string) Service {
 	logger := makeLogger()
 	return &node{
 		ServerConfig: ServerConfig{
@@ -82,7 +82,7 @@ func New(listenAddress string, apiListenAddress string) Service {
 		dr:     NewDataRetriever(),
 		nm:     NewNetworkManager(listenAddress, logger),
 
-		gatewayClient: NewGatewayClient("http://localhost:6000", logger),
+		gatewayClient: NewGatewayClient(gatewayAddress, logger),
 
 		quitNode: quitNode{
 			showNodeInfoQuitCh:   make(chan struct{}),

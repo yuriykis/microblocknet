@@ -18,6 +18,8 @@ services:
       - "3000:3000"
     environment:
       - LISTEN_ADDR=node1:3000
+      - API_LISTEN_ADDR=node1:4000
+      - GATEWAY_ADDR=http://gateway:6000
       - IS_MINER=true
     depends_on:
       - gateway
@@ -30,6 +32,9 @@ services:
       - "3001:3001"
     environment:
       - LISTEN_ADDR=node2:3001
+      - API_LISTEN_ADDR=node2:4001
+      - GATEWAY_ADDR=http://gateway:6000
+      - IS_MINER=false
       - BOOTSTRAP_NODES=node1:3000
     depends_on:
       - gateway
@@ -42,6 +47,9 @@ services:
       - "3002:3002"
     environment:
       - LISTEN_ADDR=node3:3002
+      - API_LISTEN_ADDR=node3:4002
+      - GATEWAY_ADDR=http://gateway:6000
+      - IS_MINER=false
       - BOOTSTRAP_NODES=node2:3001
     depends_on:
       - gateway

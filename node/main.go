@@ -27,6 +27,7 @@ func main() {
 	var (
 		listenAddr        = os.Getenv("LISTEN_ADDR")
 		apiListenAddr     = os.Getenv("API_LISTEN_ADDR")
+		gatewayAddress    = os.Getenv("GATEWAY_ADDR")
 		bootstrapNodesVar = os.Getenv("BOOTSTRAP_NODES")
 		bootstrapNodes    []string
 		isMiner           = os.Getenv("IS_MINER") != ""
@@ -42,7 +43,11 @@ func main() {
 		bootstrapNodes = strings.Split(bootstrapNodesVar, ",")
 	}
 
-	n := service.New(listenAddr, apiListenAddr)
+	if gatewayAddress == "" {
+		gatewayAddress = "http://localhost:6000"
+	}
+
+	n := service.New(listenAddr, apiListenAddr, gatewayAddress)
 
 	log.Fatal(n.Start(context.TODO(), bootstrapNodes, isMiner))
 }
@@ -51,10 +56,10 @@ func main() {
 func debug() {
 
 	var (
-		n1 = service.New(":3000", ":4000")
-		n2 = service.New(":3001", ":4001")
-		n3 = service.New(":3002", ":4002")
-		n4 = service.New(":3003", ":4003")
+		n1 = service.New(":3000", ":4000", "http://localhost:6000")
+		n2 = service.New(":3001", ":4001", "http://localhost:6000")
+		n3 = service.New(":3002", ":4002", "http://localhost:6000")
+		n4 = service.New(":3003", ":4003", "http://localhost:6000")
 	)
 
 	go n1.Start(context.TODO(), []string{}, true)

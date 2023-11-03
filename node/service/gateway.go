@@ -85,7 +85,7 @@ ping:
 			ok := c.Healthcheck(context.Background())
 			if !ok {
 				c.connected = false
-				c.logger.Errorf("failed to ping gateway")
+				c.logger.Errorf("failed to ping gateway, address: %s", c.Endpoint)
 				continue ping
 			}
 			if !c.connected {
@@ -96,7 +96,7 @@ ping:
 				}
 				c.connected = true
 			}
-			c.logger.Infof("successfully pinged gateway")
+			c.logger.Infof("successfully pinged gateway, address: %s", c.Endpoint)
 		}
 	}
 }
