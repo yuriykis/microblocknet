@@ -5,21 +5,47 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/yuriykis/microblocknet/common/requests"
 	"go.uber.org/zap"
 )
 
+const gatewayPingInterval = 2 * time.Second
+
 type gatewayClient struct {
-	Endpoint string
-	logger   *zap.SugaredLogger
+	Endpoint  string
+	connected bool
+	logger    *zap.SugaredLogger
 }
 
 func NewGatewayClient(endpoint string, logger *zap.SugaredLogger) *gatewayClient {
 	return &gatewayClient{
-		Endpoint: endpoint,
-		logger:   logger,
+		Endpoint:  endpoint,
+		logger:    logger,
+		connected: false,
 	}
+}
+
+func (c *gatewayClient) Healthcheck(ctx context.Context) bool {
+	endpoint := c.Endpoint + "/healthcheck"
+	req, err := http.NewRequest("GET", endpoint, nil)
+	if err != nil {
+		c.logger.Errorf("failed to create request: %v", err)
+		return false
+	}
+	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
+	if err != nil {
+		c.logger.Errorf("failed to send request: %v", err)
+		return false
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		c.logger.Errorf("gateway returned status code %d", resp.StatusCode)
+		return false
+	}
+
+	return true
 }
 
 func (c *gatewayClient) RegisterMe(ctx context.Context, addr string) (requests.RegisterNodeResponse, error) {
@@ -47,4 +73,30 @@ func (c *gatewayClient) RegisterMe(ctx context.Context, addr string) (requests.R
 		return rRes, err
 	}
 	return cResp, nil
+}
+
+func (c *gatewayClient) pingGatewayLoop(quitCh chan struct{}, myAddr string) {
+ping:
+	for {
+		select {
+		case <-quitCh:
+			return
+		case <-time.After(gatewayPingInterval):
+			ok := c.Healthcheck(context.Background())
+			if !ok {
+				c.connected = false
+				c.logger.Errorf("failed to ping gateway")
+				continue ping
+			}
+			if !c.connected {
+				_, err := c.RegisterMe(context.Background(), myAddr)
+				if err != nil {
+					c.logger.Errorf("failed to register with gateway: %v", err)
+					continue ping
+				}
+				c.connected = true
+			}
+			c.logger.Infof("successfully pinged gateway")
+		}
+	}
 }

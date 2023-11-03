@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/yuriykis/microblocknet/common/proto"
@@ -20,6 +21,9 @@ func newService() *service {
 }
 
 func (s *service) BlockByHeight(ctx context.Context, height int) (*proto.Block, error) {
+	if s.nodeApi() == nil {
+		return nil, fmt.Errorf("node api is unavailable")
+	}
 	b, err := s.nodeApi().GetBlockByHeight(ctx, height)
 	if err != nil {
 		return nil, err
@@ -28,6 +32,9 @@ func (s *service) BlockByHeight(ctx context.Context, height int) (*proto.Block, 
 }
 
 func (s *service) UTXOsByAddress(ctx context.Context, address []byte) ([]*proto.UTXO, error) {
+	if s.nodeApi() == nil {
+		return nil, fmt.Errorf("node api is unavailable")
+	}
 	utxos, err := s.nodeApi().GetUTXOsByAddress(ctx, address)
 	if err != nil {
 		return nil, err
@@ -39,6 +46,9 @@ func (s *service) InitTransaction(
 	ctx context.Context,
 	t *Transaction,
 ) (*proto.Transaction, error) {
+	if s.nodeApi() == nil {
+		return nil, fmt.Errorf("node api is unavailable")
+	}
 	clientUTXOs, err := s.nodeApi().GetUTXOsByAddress(ctx, t.FromAddress)
 	if err != nil {
 		return nil, err
@@ -88,6 +98,9 @@ func (s *service) NewTransaction(
 ) (*proto.Transaction, error) {
 	req := requests.NewTransactionRequest{
 		Transaction: t,
+	}
+	if s.nodeApi() == nil {
+		return nil, fmt.Errorf("node api is unavailable")
 	}
 	res, err := s.nodeApi().NewTransaction(ctx, req)
 	if err != nil {

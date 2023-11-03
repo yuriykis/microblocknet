@@ -19,6 +19,8 @@ services:
     environment:
       - LISTEN_ADDR=node1:3000
       - IS_MINER=true
+    depends_on:
+      - gateway
   
   node2:
     build:
@@ -29,6 +31,8 @@ services:
     environment:
       - LISTEN_ADDR=node2:3001
       - BOOTSTRAP_NODES=node1:3000
+    depends_on:
+      - gateway
 
   node3:
     build:
@@ -39,3 +43,5 @@ services:
     environment:
       - LISTEN_ADDR=node3:3002
       - BOOTSTRAP_NODES=node2:3001
+    depends_on:
+      - gateway

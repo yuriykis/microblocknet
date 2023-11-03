@@ -144,5 +144,9 @@ func (h *handler) RegisterNode(c *gin.Context) {
 				"error": err.Error(),
 			})
 		}
+		res := requests.RegisterNodeResponse{
+			Success: true,
+		}
+		c.JSON(http.StatusOK, res)
 	}
 }
