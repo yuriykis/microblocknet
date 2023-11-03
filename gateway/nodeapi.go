@@ -28,9 +28,16 @@ func (n *nodeapi) NewHost(host string) {
 
 func (n *nodeapi) makePeers() {
 	for _, addr := range n.knownHosts {
-		n.peers = append(n.peers, api.NewHTTPClient(addr))
+		n.peers = append(n.peers, api.NewHTTPClient(adjustAddr(addr)))
 	}
 	n.knownHosts = n.knownHosts[:0]
+}
+
+func adjustAddr(addr string) string {
+	if len(addr) < 7 || addr[:7] != "http://" {
+		addr = "http://" + addr
+	}
+	return addr
 }
 
 func (n *nodeapi) nodeApi() api.Client {
