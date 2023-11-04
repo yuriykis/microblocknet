@@ -1,5 +1,9 @@
 version: "3"
 
+volumes:
+    prometheus_data: {}
+    grafana_data: {}
+
 services:
   gateway:
     build:
@@ -15,10 +19,10 @@ services:
       context: ./node
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "4000:4000"
     environment:
-      - LISTEN_ADDR=node1:3000
-      - API_LISTEN_ADDR=node1:4000
+      - LISTEN_ADDR=node1:4000
+      - API_LISTEN_ADDR=node1:8000
       - GATEWAY_ADDR=http://gateway:6000
       - IS_MINER=true
     depends_on:
@@ -29,13 +33,13 @@ services:
       context: ./node
       dockerfile: Dockerfile
     ports:
-      - "3001:3001"
+      - "4001:4001"
     environment:
-      - LISTEN_ADDR=node2:3001
-      - API_LISTEN_ADDR=node2:4001
+      - LISTEN_ADDR=node2:4001
+      - API_LISTEN_ADDR=node2:8001
       - GATEWAY_ADDR=http://gateway:6000
       - IS_MINER=false
-      - BOOTSTRAP_NODES=node1:3000
+      - BOOTSTRAP_NODES=node1:4000
     depends_on:
       - gateway
 
@@ -44,13 +48,13 @@ services:
       context: ./node
       dockerfile: Dockerfile
     ports:
-      - "3002:3002"
+      - "4002:4002"
     environment:
-      - LISTEN_ADDR=node3:3002
-      - API_LISTEN_ADDR=node3:4002
+      - LISTEN_ADDR=node3:4002
+      - API_LISTEN_ADDR=node3:8002
       - GATEWAY_ADDR=http://gateway:6000
       - IS_MINER=false
-      - BOOTSTRAP_NODES=node2:3001
+      - BOOTSTRAP_NODES=node2:4001
     depends_on:
       - gateway
 
@@ -59,12 +63,49 @@ services:
       context: ./node
       dockerfile: Dockerfile
     ports:
-      - "3003:3003"
+      - "4003:4003"
     environment:
-      - LISTEN_ADDR=node4:3003
-      - API_LISTEN_ADDR=node4:4003
+      - LISTEN_ADDR=node4:4003
+      - API_LISTEN_ADDR=node4:8003
       - GATEWAY_ADDR=http://gateway:6000
       - IS_MINER=false
-      - BOOTSTRAP_NODES=node3:3002
+      - BOOTSTRAP_NODES=node3:4002
     depends_on:
       - gateway
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./monitoring/prometheus/:/etc/prometheus/
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    ports:
+      - 9090:9090
+
+  alertmanager:
+    image: prom/alertmanager
+    ports:
+      - 9093:9093
+    volumes:
+      - ./monitoring/alertmanager/:/etc/alertmanager/
+    restart: always
+    command:
+      - '--config.file=/etc/alertmanager/config.yml'
+      - '--storage.path=/alertmanager'
+
+  grafana:
+    image: grafana/grafana
+    user: "472"
+    depends_on:
+      - prometheus
+    ports:
+      - 3000:3000
+    volumes:
+      - grafana_data:/var/lib/grafana
+    env_file:
+      - ./monitoring/grafana/config.monitoring
+    restart: always

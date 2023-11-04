@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	defaultListenAddr = ":3000"
-	defaultAPIAddr    = ":4000"
+	defaultListenAddr = ":4000"
+	defaultAPIAddr    = ":8000"
 )
 
 const godSeed = "41b84a2eff9a47393471748fbbdff9d20c14badab3d2de59fd8b5e98edd34d1c577c4c3515c6c19e5b9fdfba39528b1be755aae4d6a75fc851d3a17fbf51f1bc"
@@ -56,10 +56,10 @@ func main() {
 func debug() {
 
 	var (
-		n1 = service.New(":3000", ":4000", "http://localhost:6000")
-		n2 = service.New(":3001", ":4001", "http://localhost:6000")
-		n3 = service.New(":3002", ":4002", "http://localhost:6000")
-		n4 = service.New(":3003", ":4003", "http://localhost:6000")
+		n1 = service.New(":4000", ":8000", "http://localhost:6000")
+		n2 = service.New(":4001", ":8001", "http://localhost:6000")
+		n3 = service.New(":4002", ":8002", "http://localhost:6000")
+		n4 = service.New(":4003", ":8003", "http://localhost:6000")
 	)
 
 	go func() {
@@ -69,19 +69,19 @@ func debug() {
 		}
 	}()
 	go func() {
-		err := n2.Start(context.TODO(), []string{":3000"}, false)
+		err := n2.Start(context.TODO(), []string{":4000"}, false)
 		if err != nil {
 			log.Fatal(err)
 		}
 	}()
 	go func() {
-		err := n3.Start(context.TODO(), []string{":3000"}, false)
+		err := n3.Start(context.TODO(), []string{":4000"}, false)
 		if err != nil {
 			log.Fatal(err)
 		}
 	}()
 	go func() {
-		err := n4.Start(context.TODO(), []string{":3000"}, false)
+		err := n4.Start(context.TODO(), []string{":4000"}, false)
 		if err != nil {
 			log.Fatal(err)
 		}
