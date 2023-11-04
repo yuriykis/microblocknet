@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/yuriykis/microblocknet/common/requests"
 	"github.com/yuriykis/microblocknet/node/service/client"
 	grpcPeer "google.golang.org/grpc/peer"
@@ -54,6 +55,8 @@ func (s *apiServer) Start(ctx context.Context) error {
 			makeHTTPHandlerFunc(handleGetCurrentHeight(s.dr))(w, r)
 		case "/healthcheck":
 			makeHTTPHandlerFunc(handleHealthCheck())(w, r)
+		case "/metrics":
+			promhttp.Handler().ServeHTTP(w, r)
 		default:
 			writeJSON(
 				w,

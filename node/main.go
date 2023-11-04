@@ -62,10 +62,30 @@ func debug() {
 		n4 = service.New(":3003", ":4003", "http://localhost:6000")
 	)
 
-	go n1.Start(context.TODO(), []string{}, true)
-	go n2.Start(context.TODO(), []string{":3000"}, false)
-	go n3.Start(context.TODO(), []string{":3000"}, false)
-	go n4.Start(context.TODO(), []string{":3001"}, false)
+	go func() {
+		err := n1.Start(context.TODO(), []string{}, true)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
+	go func() {
+		err := n2.Start(context.TODO(), []string{":3000"}, false)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
+	go func() {
+		err := n3.Start(context.TODO(), []string{":3000"}, false)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
+	go func() {
+		err := n4.Start(context.TODO(), []string{":3000"}, false)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
 
 	// go sendTransaction(n1, 5, 0, 99900)
 	// go sendTransaction(n2, 20, 1, 98000)

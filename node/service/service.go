@@ -112,7 +112,7 @@ func (n *node) Start(ctx context.Context, bootstrapNodes []string, isMiner bool)
 
 	go n.pingGatewayLoop(n.pingQuitCh, n.ApiListenAddr)
 
-	n.nodeServer = NewGRPCNodeServer(n, n.ListenAddress)
+	n.nodeServer = NewGRPCNodeServer(NewMetricsMiddleware(n), n.ListenAddress)
 	return startGRPCTransport(n.nodeServer)
 }
 

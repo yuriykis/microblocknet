@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -25,65 +26,76 @@ type MetricsMiddleware struct {
 	getBlocksLatency prometheus.Histogram
 	getBlocksError   prometheus.Counter
 
-	next Node
+	next NodeServer
 }
 
-func NewMetricsMiddleware(next Node) *MetricsMiddleware {
+func NewMetricsMiddleware(next NodeServer) NodeServer {
 	handshakeCount := prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "handshake_count",
+		Name: fmt.Sprintf("handshake_count_%s", next),
 		Help: "Number of handshakes",
 	})
 	handshakeLatency := prometheus.NewHistogram(prometheus.HistogramOpts{
-		Name:    "handshake_latency",
+		Name:    fmt.Sprintf("handshake_latency_%s", next),
 		Help:    "Latency of handshakes",
 		Buckets: prometheus.LinearBuckets(0, 1, 10),
-	})
+	},
+	)
 	handshakeErrorCount := prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "handshake_error_count",
+		Name: fmt.Sprintf("handshake_error_%s", next),
 		Help: "Number of handshake errors",
-	})
+	},
+	)
 
 	newTransactionCount := prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "new_transaction_count",
+		Name: fmt.Sprintf("new_transaction_count_%s", next),
 		Help: "Number of new transactions",
-	})
+	},
+	)
 	newTransactionLatency := prometheus.NewHistogram(prometheus.HistogramOpts{
-		Name:    "new_transaction_latency",
+		Name:    fmt.Sprintf("new_transaction_latency_%s", next),
 		Help:    "Latency of new transactions",
 		Buckets: prometheus.LinearBuckets(0, 1, 10),
-	})
+	},
+	)
 	newTransactionError := prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "new_transaction_error",
+		Name: fmt.Sprintf("new_transaction_error_%s", next),
 		Help: "Number of new transaction errors",
-	})
+	},
+	)
 
 	newBlockCount := prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "new_block_count",
+		Name: fmt.Sprintf("new_block_count_%s", next),
 		Help: "Number of new blocks",
-	})
+	},
+	)
 	newBlockLatency := prometheus.NewHistogram(prometheus.HistogramOpts{
-		Name:    "new_block_latency",
+		Name:    fmt.Sprintf("new_block_latency_%s", next),
 		Help:    "Latency of new blocks",
 		Buckets: prometheus.LinearBuckets(0, 1, 10),
-	})
+	},
+	)
 	newBlockError := prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "new_block_error",
+		Name: fmt.Sprintf("new_block_error_%s", next),
 		Help: "Number of new block errors",
-	})
+	},
+	)
 
 	getBlocksCount := prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "get_blocks_count",
+		Name: fmt.Sprintf("get_blocks_count_%s", next),
 		Help: "Number of get blocks",
-	})
+	},
+	)
 	getBlocksLatency := prometheus.NewHistogram(prometheus.HistogramOpts{
-		Name:    "get_blocks_latency",
+		Name:    fmt.Sprintf("get_blocks_latency_%s", next),
 		Help:    "Latency of get blocks",
 		Buckets: prometheus.LinearBuckets(0, 1, 10),
-	})
+	},
+	)
 	getBlocksError := prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "get_blocks_error",
+		Name: fmt.Sprintf("get_blocks_error_%s", next),
 		Help: "Number of get blocks errors",
-	})
+	},
+	)
 
 	prometheus.MustRegister(handshakeCount)
 	prometheus.MustRegister(handshakeLatency)
@@ -167,4 +179,8 @@ func (m *MetricsMiddleware) GetBlocks(ctx context.Context, v *proto.Version) (_ 
 		}
 	}(time.Now())
 	return m.next.GetBlocks(ctx, v)
+}
+
+func (m *MetricsMiddleware) String() string {
+	return fmt.Sprintf("metrics(%s)", m.next)
 }
