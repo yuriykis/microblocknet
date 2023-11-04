@@ -49,8 +49,8 @@ type node struct {
 
 	isMiner bool
 
-	transportServer TransportServer
-	apiServer       ApiServer
+	nodeServer NodeServer
+	apiServer  ApiServer
 
 	*gatewayClient
 
@@ -112,15 +112,15 @@ func (n *node) Start(ctx context.Context, bootstrapNodes []string, isMiner bool)
 
 	go n.pingGatewayLoop(n.pingQuitCh, n.ApiListenAddr)
 
-	n.transportServer = NewGRPCNodeServer(n, n.ListenAddress)
-	return n.transportServer.Start()
+	n.nodeServer = NewGRPCNodeServer(n, n.ListenAddress)
+	return startGRPCTransport(n.nodeServer)
 }
 
 func (n *node) Stop(ctx context.Context) error {
 	n.shutdown()
 	n.nm.stop()
 	n.apiServer.Stop(context.TODO())
-	return n.transportServer.Stop()
+	return stopGRPCTransport(n.nodeServer)
 }
 
 func (n *node) String() string {

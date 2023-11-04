@@ -5,15 +5,49 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/yuriykis/microblocknet/common/proto"
 	"google.golang.org/grpc"
 )
 
-// used to manage the transport layer between nodes
-type TransportServer interface {
-	Start() error
-	Stop() error
+type GRPCMetricsHandler struct {
+	reqCounter prometheus.Counter
+	reqLatency prometheus.Histogram
+	reqError   prometheus.Counter
+}
+
+func newGRPCMetricsHandler(reqName string) *GRPCMetricsHandler {
+	reqCounter := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: fmt.Sprintf("%s_count", reqName),
+		Help: fmt.Sprintf("Number of %s", reqName),
+	})
+	reqLatency := prometheus.NewHistogram(prometheus.HistogramOpts{
+		Name:    fmt.Sprintf("%s_latency", reqName),
+		Help:    fmt.Sprintf("Latency of %s", reqName),
+		Buckets: prometheus.LinearBuckets(0, 1, 10),
+	})
+	reqError := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: fmt.Sprintf("%s_error", reqName),
+		Help: fmt.Sprintf("Number of %s errors", reqName),
+	})
+	return &GRPCMetricsHandler{
+		reqCounter: reqCounter,
+		reqLatency: reqLatency,
+		reqError:   reqError,
+	}
+}
+
+func (h *GRPCMetricsHandler) instrument(ctx context.Context, reqName string, next func() error) error {
+	h.reqCounter.Inc()
+	start := time.Now()
+	err := next()
+	h.reqLatency.Observe(time.Since(start).Seconds())
+	if err != nil {
+		h.reqError.Inc()
+	}
+	return err
 }
 
 // interface for the node business logic
@@ -67,7 +101,12 @@ func (s *GRPCNodeServer) GetBlocks(ctx context.Context, v *proto.Version) (*prot
 }
 
 // transport methods (TransportServer interface)
-func (s *GRPCNodeServer) Start() error {
+
+func startGRPCTransport(n NodeServer) error {
+	s, ok := n.(*GRPCNodeServer)
+	if !ok {
+		return fmt.Errorf("invalid GRPCNodeServer")
+	}
 	ln, err := net.Listen("tcp", s.nodeListenAddr)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
@@ -76,7 +115,11 @@ func (s *GRPCNodeServer) Start() error {
 	return s.grpcServer.Serve(ln)
 }
 
-func (s *GRPCNodeServer) Stop() error {
+func stopGRPCTransport(n NodeServer) error {
+	s, ok := n.(*GRPCNodeServer)
+	if !ok {
+		return fmt.Errorf("invalid GRPCNodeServer")
+	}
 	s.grpcServer.GracefulStop()
 	return nil
 }
