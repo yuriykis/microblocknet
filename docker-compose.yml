@@ -53,3 +53,18 @@ services:
       - BOOTSTRAP_NODES=node2:3001
     depends_on:
       - gateway
+
+  node4:
+    build:
+      context: ./node
+      dockerfile: Dockerfile
+    ports:
+      - "3003:3003"
+    environment:
+      - LISTEN_ADDR=node4:3003
+      - API_LISTEN_ADDR=node4:4003
+      - GATEWAY_ADDR=http://gateway:6000
+      - IS_MINER=false
+      - BOOTSTRAP_NODES=node3:3002
+    depends_on:
+      - gateway

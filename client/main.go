@@ -32,6 +32,9 @@ func main() {
 		log.Fatal(err)
 	}
 	tx := tResp.Transaction
+	if tx == nil {
+		log.Fatal("tx is nil")
+	}
 	sig := secure.SignTransaction(tx, myKey)
 	tx.Inputs[0].Signature = sig.Bytes()
 	txRes, err := bc.NewTransaction(context.Background(), tx)
