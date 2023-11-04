@@ -45,4 +45,7 @@ build: proto
 	@docker build -t microblocknet ./node
 	@docker build -t microblocknet-gateway ./gateway
 
-.PHONY: build run test proto build-binary gateway up down up-d
+clear:
+	@docker rmi $(docker images -f "dangling=true" -q)
+
+.PHONY: build run test proto build-binary gateway up down up-d	up-b clear

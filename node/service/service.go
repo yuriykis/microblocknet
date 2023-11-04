@@ -49,8 +49,9 @@ type node struct {
 
 	isMiner bool
 
-	nodeServer NodeServer
-	apiServer  ApiServer
+	nodeServer    NodeServer
+	apiServer     ApiServer
+	consulService *ConsulService
 
 	*gatewayClient
 
@@ -83,6 +84,7 @@ func New(listenAddress string, apiListenAddress string, gatewayAddress string) S
 		nm:     NewNetworkManager(listenAddress, logger),
 
 		gatewayClient: NewGatewayClient(gatewayAddress, logger),
+		consulService: NewConsulService(logger),
 
 		quitNode: quitNode{
 			showNodeInfoQuitCh:   make(chan struct{}),
@@ -94,6 +96,8 @@ func New(listenAddress string, apiListenAddress string, gatewayAddress string) S
 func (n *node) Start(ctx context.Context, bootstrapNodes []string, isMiner bool) error {
 
 	n.nm.start(bootstrapNodes)
+	n.consulService.Start()
+
 	go n.syncBlockchainLoop(n.syncBlockchainQuitCh)
 	go n.showNodeInfo(n.showNodeInfoQuitCh, false, true)
 

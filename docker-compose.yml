@@ -109,3 +109,23 @@ services:
     env_file:
       - ./monitoring/grafana/config.monitoring
     restart: always
+
+  consul-server:
+    image: hashicorp/consul:latest
+    container_name: consul-server
+    restart: always
+    volumes:
+     - ./monitoring/consul/server.json:/consul/config/server.json:ro
+    ports:
+      - "8500:8500"
+      - "8600:8600/tcp"
+      - "8600:8600/udp"
+    command: "agent"
+
+  consul-client:
+    image: hashicorp/consul:latest
+    container_name: consul-client
+    restart: always
+    volumes:
+     - ./monitoring/consul/client.json:/consul/config/client.json:ro
+    command: "agent"
