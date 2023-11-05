@@ -24,6 +24,7 @@ services:
       - LISTEN_ADDR=node1:4000
       - API_LISTEN_ADDR=node1:8000
       - GATEWAY_ADDR=http://gateway:6000
+      - CONSUL_SERVICE_ADDR=node1:10000
       - IS_MINER=true
     depends_on:
       - gateway
@@ -38,6 +39,7 @@ services:
       - LISTEN_ADDR=node2:4001
       - API_LISTEN_ADDR=node2:8001
       - GATEWAY_ADDR=http://gateway:6000
+      - CONSUL_SERVICE_ADDR=node2:10001
       - IS_MINER=false
       - BOOTSTRAP_NODES=node1:4000
     depends_on:
@@ -53,6 +55,7 @@ services:
       - LISTEN_ADDR=node3:4002
       - API_LISTEN_ADDR=node3:8002
       - GATEWAY_ADDR=http://gateway:6000
+      - CONSUL_SERVICE_ADDR=node3:10002
       - IS_MINER=false
       - BOOTSTRAP_NODES=node2:4001
     depends_on:
@@ -68,6 +71,7 @@ services:
       - LISTEN_ADDR=node4:4003
       - API_LISTEN_ADDR=node4:8003
       - GATEWAY_ADDR=http://gateway:6000
+      - CONSUL_SERVICE_ADDR=node4:10003
       - IS_MINER=false
       - BOOTSTRAP_NODES=node3:4002
     depends_on:
@@ -85,7 +89,9 @@ services:
       - '--web.console.templates=/usr/share/prometheus/consoles'
     ports:
       - 9090:9090
-
+    logging:
+      driver: none
+      
   alertmanager:
     image: prom/alertmanager
     ports:
@@ -96,6 +102,8 @@ services:
     command:
       - '--config.file=/etc/alertmanager/config.yml'
       - '--storage.path=/alertmanager'
+    logging:
+      driver: none
 
   grafana:
     image: grafana/grafana
@@ -108,6 +116,8 @@ services:
       - grafana_data:/var/lib/grafana
     env_file:
       - ./monitoring/grafana/config.monitoring
+    logging:
+      driver: none
     restart: always
 
   consul-server:

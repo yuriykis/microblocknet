@@ -4,6 +4,7 @@ go 1.21.3
 
 require (
 	github.com/cbergoon/merkletree v0.2.0
+	github.com/hashicorp/consul/api v1.26.1
 	github.com/prometheus/client_golang v1.17.0
 	github.com/stretchr/testify v1.8.4
 	github.com/yuriykis/microblocknet/common v0.0.0-20231103073432-e2136edc7b9d
@@ -15,7 +16,6 @@ require (
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/fatih/color v1.14.1 // indirect
 	github.com/golang/snappy v0.0.1 // indirect
-	github.com/hashicorp/consul/api v1.26.1 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-hclog v1.5.0 // indirect
