@@ -3,37 +3,44 @@ package service
 import (
 	"log"
 	"net"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/consul/api"
+	"github.com/hashicorp/consul/api/watch"
 	"go.uber.org/zap"
 )
 
 const ttl = time.Second * 10
 
 type ConsulService struct {
-	client *api.Client
-	logger *zap.SugaredLogger
+	client     *api.Client
+	logger     *zap.SugaredLogger
+	nodeName   string
+	listenAddr string
 }
 
-func NewConsulService(logger *zap.SugaredLogger) *ConsulService {
+func NewConsulService(logger *zap.SugaredLogger, nodeName string, listenAddr string) *ConsulService {
 	client, err := api.NewClient(api.DefaultConfig())
 	if err != nil {
 		log.Fatalf("failed to create consul client: %v", err)
 	}
 	return &ConsulService{
-		client: client,
-		logger: logger,
+		client:     client,
+		logger:     logger,
+		nodeName:   nodeName,
+		listenAddr: listenAddr,
 	}
 }
 
 func (cs *ConsulService) String() string {
-	return "consul"
+	return "node" + cs.nodeName
 }
 
 func (cs *ConsulService) Start() error {
 	cs.logger.Infof("starting %s service", cs)
-	ln, err := net.Listen("tcp", ":10000")
+	ln, err := net.Listen("tcp", cs.listenAddr)
 	if err != nil {
 		return err
 	}
@@ -66,15 +73,44 @@ func (cs *ConsulService) register() error {
 		DeregisterCriticalServiceAfter: ttl.String(),
 		TTL:                            ttl.String(),
 		TLSSkipVerify:                  true,
-		CheckID:                        "service:" + cs.String(),
+		CheckID:                        cs.String(),
+	}
+	consulPortStr := strings.Split(cs.listenAddr, ":")[1]
+	consulPort, err := strconv.Atoi(consulPortStr)
+	if err != nil {
+		return err
 	}
 	service := &api.AgentServiceRegistration{
-		ID:      "service:" + cs.String(),
+		ID:      cs.String(),
 		Name:    cs.String(),
-		Address: "127.0.0.1",
-		Port:    10000,
+		Address: strings.Split(cs.listenAddr, ":")[0],
+		Port:    consulPort,
 		Check:   check,
 	}
+
+	query := map[string]any{
+		"type":        "service",
+		"service":     cs.String(),
+		"passingonly": true,
+	}
+	plan, err := watch.Parse(query)
+	if err != nil {
+		return err
+	}
+	plan.HybridHandler = func(idx watch.BlockingParamVal, result any) {
+		switch result.(type) {
+		case []*api.ServiceEntry:
+			for _, entry := range result.([]*api.ServiceEntry) {
+				cs.logger.Infof("service %s updated: %v", cs, entry)
+			}
+		default:
+			cs.logger.Infof("service %s updated", cs)
+		}
+	}
+	go func() {
+		plan.RunWithConfig("", &api.Config{})
+	}()
+
 	return cs.client.Agent().ServiceRegister(service)
 }
 
@@ -84,7 +120,7 @@ func (cs *ConsulService) update() error {
 	for {
 		select {
 		case <-ticker.C:
-			if err := cs.client.Agent().UpdateTTL("service:"+cs.String(), "", "pass"); err != nil {
+			if err := cs.client.Agent().UpdateTTL(cs.String(), "", api.HealthPassing); err != nil {
 				return err
 			}
 		}

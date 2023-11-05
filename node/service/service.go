@@ -69,7 +69,7 @@ func (n *node) shutdown() {
 	close(n.syncBlockchainQuitCh)
 }
 
-func New(listenAddress string, apiListenAddress string, gatewayAddress string) Service {
+func New(listenAddress string, apiListenAddress string, gatewayAddress string, consulServiceAddress string) Service {
 	logger := makeLogger()
 	return &node{
 		ServerConfig: ServerConfig{
@@ -84,7 +84,7 @@ func New(listenAddress string, apiListenAddress string, gatewayAddress string) S
 		nm:     NewNetworkManager(listenAddress, logger),
 
 		gatewayClient: NewGatewayClient(gatewayAddress, logger),
-		consulService: NewConsulService(logger),
+		consulService: NewConsulService(logger, listenAddress, consulServiceAddress),
 
 		quitNode: quitNode{
 			showNodeInfoQuitCh:   make(chan struct{}),
