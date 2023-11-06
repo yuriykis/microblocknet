@@ -51,20 +51,7 @@ func (cs *ConsulService) Start() error {
 		return err
 	}
 	go cs.update()
-	go cs.acceptLoop(ln)
 	return nil
-}
-
-func (cs *ConsulService) acceptLoop(ln net.Listener) {
-	cs.logger.Infof("accepting connections for %s service", cs)
-	for {
-		time.Sleep(ttl / 2)
-		_, err := ln.Accept()
-		if err != nil {
-			log.Printf("failed to accept connection: %v", err)
-			continue
-		}
-	}
 }
 
 func (cs *ConsulService) register() error {

@@ -35,7 +35,11 @@ up-d:
 
 up-b:
 	@docker compose up --build
-	
+
+consul:
+	@docker compose start consul-server
+	@docker compose start consul-client
+
 proto:
 	@protoc --go_out=. --go_opt=paths=source_relative \
 	--go-grpc_out=. --go-grpc_opt=paths=source_relative \
@@ -46,6 +50,6 @@ build: proto
 	@docker build -t microblocknet-gateway ./gateway
 
 clear:
-	@docker rmi $(docker images -f "dangling=true" -q)
+	@docker images -f "dangling=true" -q | xargs -r docker rmi
 
 .PHONY: build run test proto build-binary gateway up down up-d	up-b clear
