@@ -51,6 +51,7 @@ func (cs *ConsulService) Start() error {
 		return err
 	}
 	go cs.update()
+	cs.observe()
 	return nil
 }
 
@@ -75,6 +76,10 @@ func (cs *ConsulService) register() error {
 		Check:   check,
 	}
 
+	return cs.client.Agent().ServiceRegister(service)
+}
+
+func (cs *ConsulService) observe() error {
 	query := map[string]any{
 		"type":        "service",
 		"service":     cs.String(),
@@ -97,8 +102,7 @@ func (cs *ConsulService) register() error {
 	go func() {
 		plan.RunWithConfig("", &api.Config{})
 	}()
-
-	return cs.client.Agent().ServiceRegister(service)
+	return nil
 }
 
 func (cs *ConsulService) update() error {
