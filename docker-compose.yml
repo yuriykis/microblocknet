@@ -25,6 +25,7 @@ services:
       - API_LISTEN_ADDR=node1:8000
       - GATEWAY_ADDR=http://gateway:6000
       - CONSUL_SERVICE_ADDR=node1:10000
+      - CONSUL_HTTP_ADDR=consul-server:8500
       - IS_MINER=true
     depends_on:
       - gateway
@@ -40,6 +41,7 @@ services:
       - API_LISTEN_ADDR=node2:8001
       - GATEWAY_ADDR=http://gateway:6000
       - CONSUL_SERVICE_ADDR=node2:10001
+      - CONSUL_HTTP_ADDR=consul-server:8500
       - IS_MINER=false
       - BOOTSTRAP_NODES=node1:4000
     depends_on:
@@ -56,6 +58,7 @@ services:
       - API_LISTEN_ADDR=node3:8002
       - GATEWAY_ADDR=http://gateway:6000
       - CONSUL_SERVICE_ADDR=node3:10002
+      - CONSUL_HTTP_ADDR=consul-server:8500
       - IS_MINER=false
       - BOOTSTRAP_NODES=node2:4001
     depends_on:
@@ -72,6 +75,7 @@ services:
       - API_LISTEN_ADDR=node4:8003
       - GATEWAY_ADDR=http://gateway:6000
       - CONSUL_SERVICE_ADDR=node4:10003
+      - CONSUL_HTTP_ADDR=consul-server:8500
       - IS_MINER=false
       - BOOTSTRAP_NODES=node3:4002
     depends_on:

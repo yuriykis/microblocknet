@@ -3,6 +3,7 @@ package service
 import (
 	"log"
 	"net"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -15,32 +16,43 @@ import (
 const ttl = time.Second * 10
 
 type ConsulService struct {
-	client     *api.Client
-	logger     *zap.SugaredLogger
-	nodeName   string
-	listenAddr string
+	client           *api.Client
+	logger           *zap.SugaredLogger
+	consulListenAddr string
 }
 
-func NewConsulService(logger *zap.SugaredLogger, nodeName string, listenAddr string) *ConsulService {
+func NewConsulService(logger *zap.SugaredLogger, consulListenAddr string) *ConsulService {
 	client, err := api.NewClient(api.DefaultConfig())
 	if err != nil {
 		log.Fatalf("failed to create consul client: %v", err)
 	}
 	return &ConsulService{
-		client:     client,
-		logger:     logger,
-		nodeName:   nodeName,
-		listenAddr: listenAddr,
+		client:           client,
+		logger:           logger,
+		consulListenAddr: consulListenAddr,
 	}
 }
 
 func (cs *ConsulService) String() string {
-	return "node" + cs.nodeName
+	h, err := cs.getHostname()
+	if err != nil {
+		cs.logger.Errorf("failed to get hostname: %v", err)
+		return ""
+	}
+	return h + ":" + strings.Split(cs.consulListenAddr, ":")[1]
+}
+
+func (cs *ConsulService) getHostname() (string, error) {
+	h, err := os.Hostname()
+	if err != nil {
+		return "", err
+	}
+	return h, nil
 }
 
 func (cs *ConsulService) Start() error {
 	cs.logger.Infof("starting %s service", cs)
-	ln, err := net.Listen("tcp", cs.listenAddr)
+	ln, err := net.Listen("tcp", cs.consulListenAddr)
 	if err != nil {
 		return err
 	}
@@ -63,7 +75,7 @@ func (cs *ConsulService) register() error {
 		TLSSkipVerify:                  true,
 		CheckID:                        cs.String(),
 	}
-	consulPortStr := strings.Split(cs.listenAddr, ":")[1]
+	consulPortStr := strings.Split(cs.consulListenAddr, ":")[1]
 	consulPort, err := strconv.Atoi(consulPortStr)
 	if err != nil {
 		return err
@@ -71,7 +83,7 @@ func (cs *ConsulService) register() error {
 	service := &api.AgentServiceRegistration{
 		ID:      cs.String(),
 		Name:    cs.String(),
-		Address: strings.Split(cs.listenAddr, ":")[0],
+		Address: strings.Split(cs.consulListenAddr, ":")[0],
 		Port:    consulPort,
 		Check:   check,
 	}

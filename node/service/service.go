@@ -84,7 +84,7 @@ func New(listenAddress string, apiListenAddress string, gatewayAddress string, c
 		nm:     NewNetworkManager(listenAddress, logger),
 
 		gatewayClient: NewGatewayClient(gatewayAddress, logger),
-		consulService: NewConsulService(logger, listenAddress, consulServiceAddress),
+		consulService: NewConsulService(logger, consulServiceAddress),
 
 		quitNode: quitNode{
 			showNodeInfoQuitCh:   make(chan struct{}),
