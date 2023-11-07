@@ -43,8 +43,8 @@ func (m *networkManager) String() string {
 }
 
 func (m *networkManager) start(bootstrapNodes []string) error {
-	go m.tryConnect(m.tryConnectQuitCh, true)
-	go m.ping(m.pingQuitCh, true)
+	go m.tryConnect(m.tryConnectQuitCh, false)
+	go m.ping(m.pingQuitCh, false)
 
 	if len(bootstrapNodes) > 0 {
 		go func() {

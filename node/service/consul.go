@@ -19,6 +19,7 @@ type ConsulService struct {
 	client           *api.Client
 	logger           *zap.SugaredLogger
 	consulListenAddr string
+	connected        bool
 }
 
 func NewConsulService(logger *zap.SugaredLogger, consulListenAddr string) *ConsulService {
@@ -58,13 +59,24 @@ func (cs *ConsulService) Start() error {
 	}
 	defer ln.Close()
 
-	if err := cs.register(); err != nil {
-		cs.logger.Errorf("failed to register service: %v", err)
-		return err
-	}
+	go cs.tryConnectLoop()
 	go cs.update()
 	cs.observe()
 	return nil
+}
+
+func (cs *ConsulService) tryConnectLoop() {
+	for {
+		time.Sleep(ttl / 2)
+		if !cs.connected {
+			if err := cs.register(); err != nil {
+				cs.logger.Errorf("failed to register service: %v", err)
+				cs.connected = false
+				continue
+			}
+			cs.connected = true
+		}
+	}
 }
 
 func (cs *ConsulService) register() error {
@@ -87,7 +99,6 @@ func (cs *ConsulService) register() error {
 		Port:    consulPort,
 		Check:   check,
 	}
-
 	return cs.client.Agent().ServiceRegister(service)
 }
 
@@ -112,19 +123,24 @@ func (cs *ConsulService) observe() error {
 		}
 	}
 	go func() {
+		cs.logger.Infof("starting %s service observer", cs)
 		plan.RunWithConfig("", &api.Config{})
 	}()
 	return nil
 }
 
 func (cs *ConsulService) update() error {
-	cs.logger.Infof("updating %s service", cs)
 	ticker := time.NewTicker(ttl / 2)
 	for {
 		select {
 		case <-ticker.C:
-			if err := cs.client.Agent().UpdateTTL(cs.String(), "", api.HealthPassing); err != nil {
-				return err
+			cs.logger.Infof("updating %s service", cs)
+			if cs.connected {
+				if err := cs.client.Agent().UpdateTTL(cs.String(), "", api.HealthPassing); err != nil {
+					cs.logger.Errorf("failed to update TTL: %v", err)
+					cs.connected = false
+					return err
+				}
 			}
 		}
 	}
