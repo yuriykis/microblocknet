@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -32,8 +33,8 @@ func main() {
 		gatewayAddress    = os.Getenv("GATEWAY_ADDR")
 		consulServiceAddr = os.Getenv("CONSUL_SERVICE_ADDR")
 		bootstrapNodesVar = os.Getenv("BOOTSTRAP_NODES")
+		isMinerStr        = os.Getenv("IS_MINER")
 		bootstrapNodes    []string
-		isMiner           = os.Getenv("IS_MINER") != ""
 	)
 	if listenAddr == "" {
 		listenAddr = defaultListenAddr
@@ -48,6 +49,11 @@ func main() {
 
 	if consulServiceAddr == "" {
 		consulServiceAddr = defaultConsulAddr
+	}
+
+	isMiner, err := strconv.ParseBool(isMinerStr)
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	if gatewayAddress == "" {

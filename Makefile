@@ -24,8 +24,11 @@ client: client-build
 test:
 	@cd ./$(NODE_SERVICE_NAME); go test -v ./... -count=1
 
-up:
+up-all:
 	@docker compose up
+
+up:
+	@docker compose up gateway node1 node2 node3 node4
 
 down:
 	@docker compose down
