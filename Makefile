@@ -37,8 +37,8 @@ up-b:
 	@docker compose up --build
 
 consul:
-	@docker compose up consul-server
-	@docker compose up consul-client
+	@docker compose up -d consul-server
+	@docker compose up -d consul-client
 
 proto:
 	@protoc --go_out=. --go_opt=paths=source_relative \

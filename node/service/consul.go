@@ -139,7 +139,6 @@ func (cs *ConsulService) update() error {
 				if err := cs.client.Agent().UpdateTTL(cs.String(), "", api.HealthPassing); err != nil {
 					cs.logger.Errorf("failed to update TTL: %v", err)
 					cs.connected = false
-					return err
 				}
 			}
 		}
