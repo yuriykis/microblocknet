@@ -3,17 +3,20 @@ GATEWAY_NAME=gateway
 CLIENT_NAME=client
 NODE_SERVICE_NAME=node
 
-build-binary:
+build-node:
 	@cd ./$(NODE_SERVICE_NAME); go build  -o ./bin/$(BINARY_NAME) -v
-
-run: build-binary
-	@DEBUG=true ./$(NODE_SERVICE_NAME)/bin/$(BINARY_NAME)
 
 gate-build:
 	@cd ./gateway; go build  -o ./bin/$(GATEWAY_NAME) -v
 
 gate: gate-build
 	@./gateway/bin/$(GATEWAY_NAME)
+
+run-node: build-node
+	@DEBUG=true ./$(NODE_SERVICE_NAME)/bin/$(BINARY_NAME)
+
+run: build-node gate-build
+	@DEBUG=true ./$(NODE_SERVICE_NAME)/bin/$(BINARY_NAME) & ./gateway/bin/$(GATEWAY_NAME)
 
 client-build:
 	@cd ./client; go build  -o ./bin/$(CLIENT_NAME) -v
@@ -55,4 +58,4 @@ build: proto
 clear:
 	@docker images -f "dangling=true" -q | xargs -r docker rmi
 
-.PHONY: build run test proto build-binary gateway up down up-d	up-b clear
+.PHONY: build run test proto build-node gateway up down up-d	up-b clear
