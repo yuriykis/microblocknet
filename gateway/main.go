@@ -29,7 +29,7 @@ func Start(listenAddr string, logger *zap.SugaredLogger) error {
 }
 
 func StartKafkaConsumer(logger *zap.SugaredLogger) error {
-	kc, err := NewKafkaConsumer([]string{"register_node"})
+	kc, err := NewKafkaConsumer([]string{"register_node"}, logger)
 	if err != nil {
 		return err
 	}
