@@ -4,19 +4,21 @@ import (
 	"context"
 	"fmt"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/yuriykis/microblocknet/common/proto"
 	"github.com/yuriykis/microblocknet/common/requests"
 	"github.com/yuriykis/microblocknet/node/secure"
+	"go.uber.org/zap"
 )
 
 type service struct {
 	*nodeapi
+	logger *zap.SugaredLogger
 }
 
-func newService() *service {
+func newService(logger *zap.SugaredLogger) *service {
 	return &service{
-		nodeapi: newNodeAPI(),
+		nodeapi: newNodeAPI(logger),
+		logger:  logger,
 	}
 }
 
@@ -69,7 +71,8 @@ func (s *service) InitTransaction(
 	}
 	prevBlockRes, err := s.nodeApi().GetBlockByHeight(ctx, heightRes.Height)
 	if err != nil {
-		log.Fatal(err)
+		s.logger.Errorf("failed to get block by height: %v", err)
+		return nil, err
 	}
 	prevBlock := prevBlockRes.Block
 	prevBlockTx := prevBlock.GetTransactions()[len(prevBlock.GetTransactions())-1]
@@ -104,6 +107,7 @@ func (s *service) NewTransaction(
 	}
 	res, err := s.nodeApi().NewTransaction(ctx, req)
 	if err != nil {
+		s.logger.Errorf("failed to send transaction: %v", err)
 		return nil, err
 	}
 	return res.Transaction, nil

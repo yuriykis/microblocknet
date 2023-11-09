@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yuriykis/microblocknet/common/proto"
 	"github.com/yuriykis/microblocknet/common/requests"
+	"go.uber.org/zap"
 )
 
 type Handler interface {
@@ -20,11 +21,13 @@ type Handler interface {
 
 type handler struct {
 	service *service
+	logger  *zap.SugaredLogger
 }
 
-func newHandler() *handler {
+func newHandler(logger *zap.SugaredLogger) *handler {
 	return &handler{
-		service: newService(),
+		service: newService(logger),
+		logger:  logger,
 	}
 }
 

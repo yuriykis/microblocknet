@@ -1,21 +1,23 @@
 package main
 
 import (
-	"fmt"
 	"math/rand"
 
 	api "github.com/yuriykis/microblocknet/node/service/api_client"
+	"go.uber.org/zap"
 )
 
 type nodeapi struct {
 	peers      []api.Client
 	knownHosts []string
+	logger     *zap.SugaredLogger
 }
 
-func newNodeAPI() *nodeapi {
+func newNodeAPI(logger *zap.SugaredLogger) *nodeapi {
 	n := &nodeapi{
 		peers:      make([]api.Client, 0),
 		knownHosts: make([]string, 0),
+		logger:     logger,
 	}
 	n.makePeers()
 	return n
@@ -42,11 +44,11 @@ func adjustAddr(addr string) string {
 
 func (n *nodeapi) nodeApi() api.Client {
 	if len(n.peers) == 0 {
-		fmt.Println("No peers available")
+		n.logger.Error("No peers available")
 		return nil
 	}
 	peerSelected := n.selectPeer()
-	fmt.Println("Selected peer:", n.peers[peerSelected])
+	n.logger.Infof("Selected peer: %s", n.peers[peerSelected])
 	return n.peers[peerSelected]
 }
 

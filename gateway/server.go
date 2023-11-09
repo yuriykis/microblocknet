@@ -4,20 +4,20 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	log "github.com/sirupsen/logrus"
+	"go.uber.org/zap"
 )
 
 type server struct {
 	router  *gin.Engine
-	log     *log.Logger
+	logger  *zap.SugaredLogger
 	handler Handler
 }
 
-func newServer() *server {
+func newServer(logger *zap.SugaredLogger) *server {
 	s := &server{
 		router:  gin.Default(),
-		log:     log.New(),
-		handler: newHandler(),
+		logger:  logger,
+		handler: newHandler(logger),
 	}
 	s.configureRouter()
 	return s
