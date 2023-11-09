@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/yuriykis/microblocknet/common/messages"
 	"github.com/yuriykis/microblocknet/common/requests"
 	"go.uber.org/zap"
 )
@@ -17,13 +18,19 @@ type gatewayClient struct {
 	Endpoint  string
 	connected bool
 	logger    *zap.SugaredLogger
+	mp        MessageProducer
 }
 
 func NewGatewayClient(endpoint string, logger *zap.SugaredLogger) *gatewayClient {
+	mp, err := NewKafkaMessageProducer()
+	if err != nil {
+		logger.Errorf("failed to create message producer: %v", err)
+	}
 	return &gatewayClient{
 		Endpoint:  endpoint,
 		logger:    logger,
 		connected: false,
+		mp:        mp,
 	}
 }
 
@@ -48,7 +55,17 @@ func (c *gatewayClient) Healthcheck(ctx context.Context) bool {
 	return true
 }
 
-func (c *gatewayClient) RegisterMe(ctx context.Context, addr string) (requests.RegisterNodeResponse, error) {
+func (c *gatewayClient) RegisterMe(addr string) error {
+	rMsg := messages.RegisterNodeMessage{
+		Address: addr,
+	}
+	if err := c.mp.ProduceMessage(rMsg); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *gatewayClient) RegisterMeOld(ctx context.Context, addr string) (requests.RegisterNodeResponse, error) {
 	rRes := requests.RegisterNodeResponse{}
 	rReq := requests.RegisterNodeRequest{
 		Address: addr,
@@ -89,7 +106,7 @@ ping:
 				continue ping
 			}
 			if !c.connected {
-				_, err := c.RegisterMe(context.Background(), myAddr)
+				err := c.RegisterMe(myAddr)
 				if err != nil {
 					c.logger.Errorf("failed to register with gateway: %v", err)
 					continue ping
