@@ -23,10 +23,16 @@ type apiServer struct {
 	apiListenAddr string
 	httpServer    *http.Server
 	grpcClient    *client.GRPCClient
+	gatewayClient *gatewayClient
 	dr            DataRetriever
 }
 
-func NewApiServer(dr DataRetriever, grpcListenAddress string, apiListenAddr string) (*apiServer, error) {
+func NewApiServer(
+	dr DataRetriever,
+	grpcListenAddress string,
+	apiListenAddr string,
+	gatewayClient *gatewayClient,
+) (*apiServer, error) {
 	httpServer := &http.Server{
 		Addr: apiListenAddr,
 	}
@@ -38,6 +44,7 @@ func NewApiServer(dr DataRetriever, grpcListenAddress string, apiListenAddr stri
 		apiListenAddr: apiListenAddr,
 		httpServer:    httpServer,
 		grpcClient:    grpcClient,
+		gatewayClient: gatewayClient,
 		dr:            dr,
 	}, nil
 }
@@ -54,7 +61,7 @@ func (s *apiServer) Start(ctx context.Context) error {
 		case "/height":
 			makeHTTPHandlerFunc(handleGetCurrentHeight(s.dr))(w, r)
 		case "/healthcheck":
-			makeHTTPHandlerFunc(handleHealthCheck())(w, r)
+			makeHTTPHandlerFunc(handleHealthCheck(s.gatewayClient))(w, r)
 		case "/metrics":
 			promhttp.Handler().ServeHTTP(w, r)
 		default:
@@ -194,8 +201,9 @@ func handleGetCurrentHeight(dr DataRetriever) HTTPFunc {
 	}
 }
 
-func handleHealthCheck() HTTPFunc {
+func handleHealthCheck(gateway *gatewayClient) HTTPFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
+		gateway.SetConnected(true)
 		return writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	}
 }

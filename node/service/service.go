@@ -107,14 +107,14 @@ func (n *node) Start(ctx context.Context, bootstrapNodes []string, isMiner bool)
 		go n.minerLoop()
 	}
 
-	api, err := NewApiServer(n.dr, n.ListenAddress, n.ApiListenAddr)
+	api, err := NewApiServer(n.dr, n.ListenAddress, n.ApiListenAddr, n.gatewayClient)
 	if err != nil {
 		return err
 	}
 	n.apiServer = api
 	go n.apiServer.Start(context.TODO())
 
-	go n.pingGatewayLoop(n.pingQuitCh, n.ApiListenAddr)
+	go n.registerGatewayLoop(n.pingQuitCh, n.ApiListenAddr)
 
 	n.nodeServer = NewGRPCNodeServer(NewMetricsMiddleware(n), n.ListenAddress)
 	return startGRPCTransport(n.nodeServer)
