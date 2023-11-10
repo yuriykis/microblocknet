@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
@@ -61,7 +60,7 @@ loop:
 				continue loop
 			}
 			c.logger.Infof("received message: %v", request)
-			if err := c.service.NewNode(context.TODO(), request.Address); err != nil {
+			if err := c.service.NewNode(request.Address); err != nil {
 				c.logger.Errorf("failed to register node: %v", err)
 				continue loop
 			}
