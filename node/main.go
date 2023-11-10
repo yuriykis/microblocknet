@@ -69,10 +69,10 @@ func main() {
 func debug() {
 
 	var (
-		n1 = service.New(":4000", ":8000", "http://localhost:6000", "127.0.0.1:10000")
-		n2 = service.New(":4001", ":8001", "http://localhost:6000", "127.0.0.1:10001")
-		n3 = service.New(":4002", ":8002", "http://localhost:6000", "127.0.0.1:10002")
-		n4 = service.New(":4003", ":8003", "http://localhost:6000", "127.0.0.1:10003")
+		n1 = service.New("localhost:4000", "localhost:8000", "http://localhost:6000", "127.0.0.1:10000")
+		n2 = service.New("localhost:4001", "localhost:8001", "http://localhost:6000", "127.0.0.1:10001")
+		n3 = service.New("localhost:4002", "localhost:8002", "http://localhost:6000", "127.0.0.1:10002")
+		n4 = service.New("localhost:4003", "localhost:8003", "http://localhost:6000", "127.0.0.1:10003")
 	)
 
 	go func() {
@@ -82,19 +82,19 @@ func debug() {
 		}
 	}()
 	go func() {
-		err := n2.Start(context.TODO(), []string{":4000"}, false)
+		err := n2.Start(context.TODO(), []string{"localhost:4000"}, false)
 		if err != nil {
 			log.Fatal(err)
 		}
 	}()
 	go func() {
-		err := n3.Start(context.TODO(), []string{":4000"}, false)
+		err := n3.Start(context.TODO(), []string{"localhost:4000"}, false)
 		if err != nil {
 			log.Fatal(err)
 		}
 	}()
 	go func() {
-		err := n4.Start(context.TODO(), []string{":4000"}, false)
+		err := n4.Start(context.TODO(), []string{"localhost:4000"}, false)
 		if err != nil {
 			log.Fatal(err)
 		}
