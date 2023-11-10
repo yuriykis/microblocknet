@@ -58,11 +58,3 @@ type GetCurrentHeightResponse struct {
 type HealthcheckResponse struct {
 	Healthcheck string
 }
-
-type RegisterNodeRequest struct {
-	Address string
-}
-
-type RegisterNodeResponse struct {
-	Success bool
-}
