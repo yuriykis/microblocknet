@@ -12,7 +12,7 @@ gate-build:
 gate: gate-build
 	@./gateway/bin/$(GATEWAY_NAME)
 
-run-node: build-node
+node: build-node
 	@DEBUG=true ./$(NODE_SERVICE_NAME)/bin/$(BINARY_NAME)
 
 run: build-node gate-build
