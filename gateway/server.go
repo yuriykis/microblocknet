@@ -13,11 +13,11 @@ type server struct {
 	handler Handler
 }
 
-func newServer(logger *zap.SugaredLogger) *server {
+func newServer(logger *zap.SugaredLogger, service *service) *server {
 	s := &server{
 		router:  gin.Default(),
 		logger:  logger,
-		handler: newHandler(logger),
+		handler: newHandler(logger, service),
 	}
 	s.configureRouter()
 	return s
@@ -30,7 +30,6 @@ func (s *server) configureRouter() {
 	s.router.GET("/utxo", s.handler.UTXO)
 	s.router.POST("/transaction/init", s.handler.InitTransaction)
 	s.router.POST("/transaction", s.handler.NewTransaction)
-	s.router.POST("/node/register", s.handler.RegisterNode)
 }
 
 func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {

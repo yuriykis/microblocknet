@@ -15,25 +15,26 @@ func main() {
 	flag.Parse()
 
 	logger := makeLogger()
+	service := newService(logger)
 
-	go StartKafkaConsumer(logger)
+	go StartKafkaConsumer(logger, service)
 
-	if err := Start(*listenAddr, logger); err != nil {
+	if err := Start(*listenAddr, logger, service); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func Start(listenAddr string, logger *zap.SugaredLogger) error {
-	server := newServer(logger)
+func Start(listenAddr string, logger *zap.SugaredLogger, service *service) error {
+	server := newServer(logger, service)
 	return http.ListenAndServe(listenAddr, server)
 }
 
-func StartKafkaConsumer(logger *zap.SugaredLogger) error {
+func StartKafkaConsumer(logger *zap.SugaredLogger, service *service) error {
 	kc, err := NewKafkaConsumer([]string{"register_node"}, logger)
 	if err != nil {
 		return err
 	}
-	kc.Start(newService(logger))
+	kc.Start(service)
 	return nil
 }
 

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/yuriykis/microblocknet/common/proto"
 	"github.com/yuriykis/microblocknet/common/requests"
@@ -10,16 +11,20 @@ import (
 	"go.uber.org/zap"
 )
 
+const pingPeersInterval = 5 * time.Second
+
 type service struct {
 	*nodeapi
 	logger *zap.SugaredLogger
 }
 
 func newService(logger *zap.SugaredLogger) *service {
-	return &service{
+	s := &service{
 		nodeapi: newNodeAPI(logger),
 		logger:  logger,
 	}
+	go s.pingKnownPeers()
+	return s
 }
 
 func (s *service) BlockByHeight(ctx context.Context, height int) (*proto.Block, error) {
@@ -113,10 +118,21 @@ func (s *service) NewTransaction(
 	return res.Transaction, nil
 }
 
-func (s *service) NewNode(ctx context.Context, addr string) error {
-	req := requests.RegisterNodeRequest{
-		Address: addr,
-	}
-	s.NewHost(req.Address)
+func (s *service) NewNode(addr string) error {
+	s.NewHost(addr)
 	return nil
+}
+
+func (s *service) pingKnownPeers() {
+	s.logger.Infof("starting to ping known peers")
+	for {
+		select {
+		case <-time.After(pingPeersInterval):
+			for _, addr := range s.Peers() {
+				if err := s.pingPeer(addr); err != nil {
+					s.logger.Errorf("failed to ping peer: %v", err)
+				}
+			}
+		}
+	}
 }
