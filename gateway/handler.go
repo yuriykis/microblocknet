@@ -16,7 +16,6 @@ type Handler interface {
 	UTXO(c *gin.Context)
 	InitTransaction(c *gin.Context)
 	NewTransaction(c *gin.Context)
-	RegisterNode(c *gin.Context)
 }
 
 type handler struct {
@@ -24,9 +23,9 @@ type handler struct {
 	logger  *zap.SugaredLogger
 }
 
-func newHandler(logger *zap.SugaredLogger) *handler {
+func newHandler(logger *zap.SugaredLogger, service *service) *handler {
 	return &handler{
-		service: newService(logger),
+		service: service,
 		logger:  logger,
 	}
 }
@@ -131,25 +130,5 @@ func (h *handler) NewTransaction(c *gin.Context) {
 		c.JSON(http.StatusOK, requests.NewTransactionResponse{
 			Transaction: t,
 		})
-	}
-}
-
-func (h *handler) RegisterNode(c *gin.Context) {
-	if c.Request.Method == http.MethodPost {
-		var nReq requests.RegisterNodeRequest
-		if err := c.ShouldBindJSON(&nReq); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error": err.Error(),
-			})
-		}
-		if err := h.service.NewNode(c.Request.Context(), nReq.Address); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": err.Error(),
-			})
-		}
-		res := requests.RegisterNodeResponse{
-			Success: true,
-		}
-		c.JSON(http.StatusOK, res)
 	}
 }
