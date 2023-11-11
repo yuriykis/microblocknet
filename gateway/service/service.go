@@ -7,7 +7,6 @@ import (
 	"github.com/yuriykis/microblocknet/common/requests"
 	"github.com/yuriykis/microblocknet/gateway/network"
 	"github.com/yuriykis/microblocknet/gateway/types"
-	"github.com/yuriykis/microblocknet/node/secure"
 	"go.uber.org/zap"
 )
 
@@ -70,13 +69,6 @@ func (s *service) InitTransaction(
 	if clientUTXOs == nil {
 		return nil, err
 	}
-	var totalAmount int
-	for _, utxo := range clientUTXOs.UTXOs {
-		totalAmount += int(utxo.Output.Value)
-	}
-	if totalAmount < t.Amount {
-		return nil, err
-	}
 	heightRes, err := n.Height(ctx)
 	if err != nil {
 		return nil, err
@@ -87,24 +79,17 @@ func (s *service) InitTransaction(
 		return nil, err
 	}
 	prevBlock := prevBlockRes.Block
-	prevBlockTx := prevBlock.GetTransactions()[len(prevBlock.GetTransactions())-1]
-	txInput := &proto.TxInput{
-		PrevTxHash: []byte(secure.HashTransaction(prevBlockTx)),
-		PublicKey:  t.FromPubKey,
-		OutIndex:   clientUTXOs.UTXOs[0].OutIndex,
+
+	txBuilder := types.NewTransactionBuilder().
+		SetClientUTXOs(clientUTXOs.UTXOs).
+		SetChainHeight(heightRes.Height).
+		SetPrevBlock(prevBlock).
+		SetTransaction(t)
+	tx, err := txBuilder.Build()
+	if err != nil {
+		return nil, err
 	}
-	txOutput1 := &proto.TxOutput{
-		Value:   int64(t.Amount),
-		Address: t.ToAddress,
-	}
-	txOutput2 := &proto.TxOutput{
-		Value:   int64(totalAmount - t.Amount),
-		Address: t.FromAddress,
-	}
-	return &proto.Transaction{
-		Inputs:  []*proto.TxInput{txInput},
-		Outputs: []*proto.TxOutput{txOutput1, txOutput2},
-	}, nil
+	return tx, nil
 }
 
 func (s *service) NewTransaction(
