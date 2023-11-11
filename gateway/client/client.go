@@ -10,10 +10,7 @@ import (
 )
 
 type Client interface {
-	InitTransaction(
-		ctx context.Context,
-		tReq requests.InitTransactionRequest,
-	) (*requests.InitTransactionResponse, error)
+	InitTransaction(ctx context.Context, tReq requests.InitTransactionRequest) (*requests.InitTransactionResponse, error)
 	GetMyUTXOs(ctx context.Context) error
 	GetBlockByHeight(ctx context.Context, height int) (*requests.GetBlockByHeightResponse, error)
 	GetUTXOsByAddress(ctx context.Context) error
