@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yuriykis/microblocknet/gateway/service"
 	"go.uber.org/zap"
 )
 
@@ -13,7 +14,7 @@ type server struct {
 	handler Handler
 }
 
-func newServer(logger *zap.SugaredLogger, service *service) *server {
+func newServer(logger *zap.SugaredLogger, service service.Service) *server {
 	s := &server{
 		router:  gin.Default(),
 		logger:  logger,

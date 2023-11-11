@@ -1,37 +1,42 @@
-package main
+package service
 
 import (
 	"context"
-	"fmt"
-	"time"
 
 	"github.com/yuriykis/microblocknet/common/proto"
 	"github.com/yuriykis/microblocknet/common/requests"
+	"github.com/yuriykis/microblocknet/gateway/network"
+	"github.com/yuriykis/microblocknet/gateway/types"
 	"github.com/yuriykis/microblocknet/node/secure"
 	"go.uber.org/zap"
 )
 
-const pingPeersInterval = 5 * time.Second
+type Service interface {
+	BlockByHeight(ctx context.Context, height int) (*proto.Block, error)
+	UTXOsByAddress(ctx context.Context, address []byte) ([]*proto.UTXO, error)
+	InitTransaction(ctx context.Context, t *types.Transaction) (*proto.Transaction, error)
+	NewTransaction(ctx context.Context, t *proto.Transaction) (*proto.Transaction, error)
+}
 
 type service struct {
-	*nodeapi
+	n      network.Networker
 	logger *zap.SugaredLogger
 }
 
-func newService(logger *zap.SugaredLogger) *service {
+func New(logger *zap.SugaredLogger, n network.Networker) Service {
 	s := &service{
-		nodeapi: newNodeAPI(logger),
-		logger:  logger,
+		n:      n,
+		logger: logger,
 	}
-	go s.pingKnownPeers()
 	return s
 }
 
 func (s *service) BlockByHeight(ctx context.Context, height int) (*proto.Block, error) {
-	if s.nodeApi() == nil {
-		return nil, fmt.Errorf("node api is unavailable")
+	n, err := s.n.Node()
+	if err != nil {
+		return nil, err
 	}
-	b, err := s.nodeApi().GetBlockByHeight(ctx, height)
+	b, err := n.GetBlockByHeight(ctx, height)
 	if err != nil {
 		return nil, err
 	}
@@ -39,10 +44,11 @@ func (s *service) BlockByHeight(ctx context.Context, height int) (*proto.Block, 
 }
 
 func (s *service) UTXOsByAddress(ctx context.Context, address []byte) ([]*proto.UTXO, error) {
-	if s.nodeApi() == nil {
-		return nil, fmt.Errorf("node api is unavailable")
+	n, err := s.n.Node()
+	if err != nil {
+		return nil, err
 	}
-	utxos, err := s.nodeApi().GetUTXOsByAddress(ctx, address)
+	utxos, err := n.GetUTXOsByAddress(ctx, address)
 	if err != nil {
 		return nil, err
 	}
@@ -51,12 +57,13 @@ func (s *service) UTXOsByAddress(ctx context.Context, address []byte) ([]*proto.
 
 func (s *service) InitTransaction(
 	ctx context.Context,
-	t *Transaction,
+	t *types.Transaction,
 ) (*proto.Transaction, error) {
-	if s.nodeApi() == nil {
-		return nil, fmt.Errorf("node api is unavailable")
+	n, err := s.n.Node()
+	if err != nil {
+		return nil, err
 	}
-	clientUTXOs, err := s.nodeApi().GetUTXOsByAddress(ctx, t.FromAddress)
+	clientUTXOs, err := n.GetUTXOsByAddress(ctx, t.FromAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -70,11 +77,11 @@ func (s *service) InitTransaction(
 	if totalAmount < t.Amount {
 		return nil, err
 	}
-	heightRes, err := s.nodeApi().Height(ctx)
+	heightRes, err := n.Height(ctx)
 	if err != nil {
 		return nil, err
 	}
-	prevBlockRes, err := s.nodeApi().GetBlockByHeight(ctx, heightRes.Height)
+	prevBlockRes, err := n.GetBlockByHeight(ctx, heightRes.Height)
 	if err != nil {
 		s.logger.Errorf("failed to get block by height: %v", err)
 		return nil, err
@@ -107,32 +114,14 @@ func (s *service) NewTransaction(
 	req := requests.NewTransactionRequest{
 		Transaction: t,
 	}
-	if s.nodeApi() == nil {
-		return nil, fmt.Errorf("node api is unavailable")
+	n, err := s.n.Node()
+	if err != nil {
+		return nil, err
 	}
-	res, err := s.nodeApi().NewTransaction(ctx, req)
+	res, err := n.NewTransaction(ctx, req)
 	if err != nil {
 		s.logger.Errorf("failed to send transaction: %v", err)
 		return nil, err
 	}
 	return res.Transaction, nil
-}
-
-func (s *service) NewNode(addr string) error {
-	s.NewHost(addr)
-	return nil
-}
-
-func (s *service) pingKnownPeers() {
-	s.logger.Infof("starting to ping known peers")
-	for {
-		select {
-		case <-time.After(pingPeersInterval):
-			for _, addr := range s.Peers() {
-				if err := s.pingPeer(addr); err != nil {
-					s.logger.Errorf("failed to ping peer: %v", err)
-				}
-			}
-		}
-	}
 }

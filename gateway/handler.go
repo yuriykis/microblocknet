@@ -7,6 +7,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yuriykis/microblocknet/common/proto"
 	"github.com/yuriykis/microblocknet/common/requests"
+	"github.com/yuriykis/microblocknet/gateway/service"
+	"github.com/yuriykis/microblocknet/gateway/types"
 	"go.uber.org/zap"
 )
 
@@ -19,11 +21,11 @@ type Handler interface {
 }
 
 type handler struct {
-	service *service
+	service service.Service
 	logger  *zap.SugaredLogger
 }
 
-func newHandler(logger *zap.SugaredLogger, service *service) *handler {
+func newHandler(logger *zap.SugaredLogger, service service.Service) *handler {
 	return &handler{
 		service: service,
 		logger:  logger,
@@ -91,7 +93,7 @@ func (h *handler) InitTransaction(c *gin.Context) {
 				"error": err.Error(),
 			})
 		}
-		tx, err = h.service.InitTransaction(c.Request.Context(), &Transaction{
+		tx, err = h.service.InitTransaction(c.Request.Context(), &types.Transaction{
 			FromAddress: tReq.FromAddress,
 			FromPubKey:  tReq.FromPubKey,
 			ToAddress:   tReq.ToAddress,

@@ -5,13 +5,14 @@ import (
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/yuriykis/microblocknet/common/messages"
+	"github.com/yuriykis/microblocknet/gateway/network"
 	"go.uber.org/zap"
 )
 
 type KafkaConsumer struct {
 	consumer *kafka.Consumer
-	service  *service
 	logger   *zap.SugaredLogger
+	network  network.Networker
 	quitCh   chan struct{}
 }
 
@@ -31,8 +32,8 @@ func NewKafkaConsumer(topics []string, logger *zap.SugaredLogger) (*KafkaConsume
 	}, nil
 }
 
-func (c *KafkaConsumer) Start(service *service) {
-	c.service = service
+func (c *KafkaConsumer) Start(network network.Networker) {
+	c.network = network
 	go c.readMessageLoop()
 }
 
@@ -60,7 +61,7 @@ loop:
 				continue loop
 			}
 			c.logger.Infof("received message: %v", request)
-			if err := c.service.NewNode(request.Address); err != nil {
+			if err := c.network.NewPeer(request.Address); err != nil {
 				c.logger.Errorf("failed to register node: %v", err)
 				continue loop
 			}

@@ -6,6 +6,8 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/yuriykis/microblocknet/gateway/network"
+	"github.com/yuriykis/microblocknet/gateway/service"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -15,26 +17,27 @@ func main() {
 	flag.Parse()
 
 	logger := makeLogger()
-	service := newService(logger)
+	network := network.New(logger)
+	service := service.New(logger, network)
 
-	go StartKafkaConsumer(logger, service)
+	go StartKafkaConsumer(logger, network)
 
 	if err := Start(*listenAddr, logger, service); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func Start(listenAddr string, logger *zap.SugaredLogger, service *service) error {
+func Start(listenAddr string, logger *zap.SugaredLogger, service service.Service) error {
 	server := newServer(logger, service)
 	return http.ListenAndServe(listenAddr, server)
 }
 
-func StartKafkaConsumer(logger *zap.SugaredLogger, service *service) error {
+func StartKafkaConsumer(logger *zap.SugaredLogger, n network.Networker) error {
 	kc, err := NewKafkaConsumer([]string{"register_node"}, logger)
 	if err != nil {
 		return err
 	}
-	kc.Start(service)
+	kc.Start(n)
 	return nil
 }
 
