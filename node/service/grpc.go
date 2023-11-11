@@ -10,7 +10,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-// interface for the node business logic
 type NodeServer interface {
 	Handshake(ctx context.Context, v *proto.Version) (*proto.Version, error)
 	NewTransaction(ctx context.Context, t *proto.Transaction) (*proto.Transaction, error)
@@ -19,7 +18,6 @@ type NodeServer interface {
 	String() string
 }
 
-// GRPCNodeServer implements the NodeServer interface and the TransportServer interface
 type GRPCNodeServer struct {
 	proto.UnimplementedNodeServer
 	node Node
@@ -64,8 +62,6 @@ func (s *GRPCNodeServer) GetBlocks(ctx context.Context, v *proto.Version) (*prot
 func (s *GRPCNodeServer) String() string {
 	return s.nodeListenAddr[len(s.nodeListenAddr)-4:]
 }
-
-// transport methods (TransportServer interface)
 
 func startGRPCTransport(n NodeServer) error {
 	s, ok := n.(*GRPCNodeServer)
