@@ -5,9 +5,12 @@ go 1.21.3
 require (
 	github.com/gin-gonic/gin v1.9.1
 	github.com/sirupsen/logrus v1.9.3
-	github.com/yuriykis/microblocknet/common v0.0.0-20231103073432-e2136edc7b9d
+	github.com/yuriykis/microblocknet/common v0.0.0-20231111140205-8159a58c80c1
 	github.com/yuriykis/microblocknet/node v0.0.0-20231103112352-c951207840e6
+	go.uber.org/zap v1.26.0
 )
+
+require go.uber.org/multierr v1.11.0 // indirect
 
 require (
 	github.com/bytedance/sonic v1.9.1 // indirect

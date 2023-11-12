@@ -55,8 +55,8 @@ proto:
 	./common/proto/*.proto
 	
 build: proto
-	@docker build -t microblocknet ./node
-	@docker build -t microblocknet-gateway ./gateway
+	@docker build -t ghcr.io/yuriykis/microblocknet ./node
+	@docker build -t ghcr.io/yuriykis/microblocknet-gateway ./gateway
 
 clear:
 	@docker images -f "dangling=true" -q | xargs -r docker rmi
