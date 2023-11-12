@@ -20,6 +20,8 @@ spec:
           env:
             - name: LISTEN_ADDR
               value: "gateway:6000"
+      imagePullSecrets:
+        - name: ghcr-credentials
 ---
 apiVersion: v1
 kind: Service
