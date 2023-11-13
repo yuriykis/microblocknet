@@ -22,12 +22,9 @@ type dataRetriever struct {
 }
 
 func NewRetriever() Retriever {
-	var (
-		txStore    = store.NewMemoryTxStore()
-		blockStore = store.NewMemoryBlockStore()
-		utxoStore  = store.NewMemoryUTXOStore()
-	)
-	chain := chain.New(txStore, blockStore, utxoStore)
+	var s store.Storer = store.NewChainMemoryStore()
+
+	chain := chain.New(s)
 
 	return &dataRetriever{
 		mempool: NewMempool(),
@@ -40,7 +37,7 @@ func (r *dataRetriever) GetBlockByHeight(ctx context.Context, height int) (*prot
 }
 
 func (r *dataRetriever) GetUTXOsByAddress(ctx context.Context, address []byte) ([]*proto.UTXO, error) {
-	return r.chain.UTXOStore().GetByAddress(address)
+	return r.chain.Store().UTXOStore().GetByAddress(address)
 }
 
 func (r *dataRetriever) Mempool() *Mempool {

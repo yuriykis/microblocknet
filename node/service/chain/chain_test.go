@@ -12,13 +12,8 @@ import (
 )
 
 func TestNewChain(t *testing.T) {
-	var (
-		txStore    = store.NewMemoryTxStore()
-		blockStore = store.NewMemoryBlockStore()
-		utxoStore  = store.NewMemoryUTXOStore()
-	)
-
-	chain := New(txStore, blockStore, utxoStore)
+	s := store.NewChainMemoryStore()
+	chain := New(s)
 	assert.Equal(t, 0, chain.Height())
 
 	assert.Equal(t, 1, len(chain.headers.headers))
@@ -27,7 +22,8 @@ func TestNewChain(t *testing.T) {
 }
 
 func TestChainAddBlock(t *testing.T) {
-	chain := New(store.NewMemoryTxStore(), store.NewMemoryBlockStore(), store.NewMemoryUTXOStore())
+	s := store.NewChainMemoryStore()
+	chain := New(s)
 	assert.Equal(t, 0, chain.Height())
 
 	for i := 0; i < 10; i++ {
@@ -42,7 +38,8 @@ func TestChainAddBlock(t *testing.T) {
 }
 
 func TestChainAddBlockWithTxs(t *testing.T) {
-	chain := New(store.NewMemoryTxStore(), store.NewMemoryBlockStore(), store.NewMemoryUTXOStore())
+	s := store.NewChainMemoryStore()
+	chain := New(s)
 	assert.Equal(t, 0, chain.Height())
 	myPrivKey := crypto.PrivateKeyFromString(godSeed)
 	toAddress := crypto.GeneratePrivateKey().PublicKey().Address()
@@ -56,7 +53,7 @@ func TestChainAddBlockWithTxs(t *testing.T) {
 		assert.NotNil(t, prevBlockTx)
 
 		block := util.RandomBlock()
-		myUTXOs, err := chain.utxoStore.GetByAddress(myPrivKey.PublicKey().Address().Bytes())
+		myUTXOs, err := chain.Store().UTXOStore().GetByAddress(myPrivKey.PublicKey().Address().Bytes())
 		assert.NotNil(t, myUTXOs)
 		assert.Nil(t, err)
 

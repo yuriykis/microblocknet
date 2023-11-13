@@ -318,9 +318,9 @@ func (n *node) showNodeInfo(quitCh chan struct{}, netLogging bool, blockchainLog
 			}
 			if blockchainLogging {
 				n.logger.Infof("Node %s, blockchain height: %d", n, n.dr.Chain().Height())
-				n.logger.Infof("Node %s, blocks in blockchain: %v", n, len(n.dr.Chain().BlockStore().List()))
-				n.logger.Infof("Node %s, transactions in blockchain: %v", n, len(n.dr.Chain().TxStore().List()))
-				n.logger.Infof("Node %s, utxos in blockchain: %v", n, len(n.dr.Chain().UTXOStore().List()))
+				n.logger.Infof("Node %s, blocks in blockchain: %v", n, len(n.dr.Chain().Store().BlockStore().List()))
+				n.logger.Infof("Node %s, transactions in blockchain: %v", n, len(n.dr.Chain().Store().TxStore().List()))
+				n.logger.Infof("Node %s, utxos in blockchain: %v", n, len(n.dr.Chain().Store().UTXOStore().List()))
 			}
 			time.Sleep(3 * time.Second)
 		}

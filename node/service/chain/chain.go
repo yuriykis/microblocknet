@@ -41,33 +41,21 @@ func (l *HeadersList) Get(index int) (*proto.Header, error) {
 const godSeed = "41b84a2eff9a47393471748fbbdff9d20c14badab3d2de59fd8b5e98edd34d1c577c4c3515c6c19e5b9fdfba39528b1be755aae4d6a75fc851d3a17fbf51f1bc"
 
 type Chain struct {
-	txStore    store.TxStorer
-	blockStore store.BlockStorer
-	utxoStore  store.UTXOStorer
-	headers    *HeadersList
+	store   store.Storer
+	headers *HeadersList
 }
 
-func New(txStore store.TxStorer, blockStore store.BlockStorer, utxoStore store.UTXOStorer) *Chain {
+func New(s store.Storer) *Chain {
 	chain := &Chain{
-		txStore:    txStore,
-		blockStore: blockStore,
-		utxoStore:  utxoStore,
-		headers:    NewHeadersList(),
+		store:   s,
+		headers: NewHeadersList(),
 	}
 	chain.addBlock(genesisBlock())
 	return chain
 }
 
-func (c *Chain) UTXOStore() store.UTXOStorer {
-	return c.utxoStore
-}
-
-func (c *Chain) TxStore() store.TxStorer {
-	return c.txStore
-}
-
-func (c *Chain) BlockStore() store.BlockStorer {
-	return c.blockStore
+func (c *Chain) Store() store.Storer {
+	return c.store
 }
 
 func (c *Chain) Height() int {
@@ -82,20 +70,20 @@ func (c *Chain) AddBlock(block *proto.Block) error {
 }
 
 func (c *Chain) addBlock(block *proto.Block) error {
-	if err := c.blockStore.Put(block); err != nil {
+	if err := c.store.BlockStore().Put(block); err != nil {
 		return err
 	}
 	c.headers.Add(block.Header)
 
 	for _, tx := range block.Transactions {
-		if err := c.txStore.Put(tx); err != nil {
+		if err := c.store.TxStore().Put(tx); err != nil {
 			return err
 		}
 		if err := c.makeUTXOs(tx); err != nil {
 			return err
 		}
 	}
-	return c.blockStore.Put(block)
+	return c.store.BlockStore().Put(block)
 }
 
 func (c *Chain) makeUTXOs(tx *proto.Transaction) error {
@@ -107,18 +95,18 @@ func (c *Chain) makeUTXOs(tx *proto.Transaction) error {
 			Output:   output,
 			Spent:    false,
 		}
-		if err := c.utxoStore.Put(utxo); err != nil {
+		if err := c.store.UTXOStore().Put(utxo); err != nil {
 			return err
 		}
 	}
 	for _, input := range tx.Inputs {
 		utxoKey := secure.MakeUTXOKey(input.PrevTxHash, int(input.OutIndex))
-		utxo, err := c.utxoStore.Get(utxoKey)
+		utxo, err := c.store.UTXOStore().Get(utxoKey)
 		if err != nil {
 			return err
 		}
 		utxo.Spent = true
-		if err := c.utxoStore.Put(utxo); err != nil {
+		if err := c.store.UTXOStore().Put(utxo); err != nil {
 			return err
 		}
 	}
@@ -164,7 +152,7 @@ func (c *Chain) ValidateTransaction(tx *proto.Transaction) error {
 	inputsSum := int64(0)
 	for _, input := range tx.Inputs {
 		utxoKey := secure.MakeUTXOKey(input.PrevTxHash, int(input.OutIndex))
-		utxo, err := c.utxoStore.Get(utxoKey)
+		utxo, err := c.store.UTXOStore().Get(utxoKey)
 		if err != nil {
 			return err
 		}
@@ -195,7 +183,7 @@ func (c *Chain) GetBlockByHeight(height int) (*proto.Block, error) {
 		return nil, err
 	}
 	hash := secure.HashHeader(header)
-	block, err := c.blockStore.Get(hash)
+	block, err := c.store.BlockStore().Get(hash)
 	if err != nil {
 		return nil, err
 	}
@@ -203,7 +191,7 @@ func (c *Chain) GetBlockByHeight(height int) (*proto.Block, error) {
 }
 
 func (c *Chain) GetBlockByHash(hash string) (*proto.Block, error) {
-	return c.blockStore.Get(hash)
+	return c.store.BlockStore().Get(hash)
 }
 
 func genesisBlock() *proto.Block {
