@@ -1,31 +1,33 @@
-package service
+package data
 
 import (
 	"context"
 
 	"github.com/yuriykis/microblocknet/common/proto"
+	"github.com/yuriykis/microblocknet/node/service/chain"
 	"github.com/yuriykis/microblocknet/node/store"
 )
 
-type DataRetriever interface {
+type Retriever interface {
 	GetBlockByHeight(ctx context.Context, height int) (*proto.Block, error)
 	GetUTXOsByAddress(ctx context.Context, address []byte) ([]*proto.UTXO, error)
 	Mempool() *Mempool
-	Chain() *Chain
+	MempoolList() []*proto.Transaction
+	Chain() *chain.Chain
 }
 
 type dataRetriever struct {
 	mempool *Mempool
-	chain   *Chain
+	chain   *chain.Chain
 }
 
-func NewDataRetriever() DataRetriever {
+func NewRetriever() Retriever {
 	var (
 		txStore    = store.NewMemoryTxStore()
 		blockStore = store.NewMemoryBlockStore()
 		utxoStore  = store.NewMemoryUTXOStore()
 	)
-	chain := NewChain(txStore, blockStore, utxoStore)
+	chain := chain.New(txStore, blockStore, utxoStore)
 
 	return &dataRetriever{
 		mempool: NewMempool(),
@@ -38,13 +40,17 @@ func (r *dataRetriever) GetBlockByHeight(ctx context.Context, height int) (*prot
 }
 
 func (r *dataRetriever) GetUTXOsByAddress(ctx context.Context, address []byte) ([]*proto.UTXO, error) {
-	return r.chain.utxoStore.GetByAddress(address)
+	return r.chain.UTXOStore().GetByAddress(address)
 }
 
 func (r *dataRetriever) Mempool() *Mempool {
 	return r.mempool
 }
 
-func (r *dataRetriever) Chain() *Chain {
+func (r *dataRetriever) MempoolList() []*proto.Transaction {
+	return r.mempool.list()
+}
+
+func (r *dataRetriever) Chain() *chain.Chain {
 	return r.chain
 }

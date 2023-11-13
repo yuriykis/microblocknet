@@ -10,6 +10,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/yuriykis/microblocknet/common/requests"
 	"github.com/yuriykis/microblocknet/node/service/client"
+	"github.com/yuriykis/microblocknet/node/service/data"
 	grpcPeer "google.golang.org/grpc/peer"
 )
 
@@ -24,11 +25,11 @@ type apiServer struct {
 	httpServer    *http.Server
 	grpcClient    *client.GRPCClient
 	gatewayClient *gatewayClient
-	dr            DataRetriever
+	dr            data.Retriever
 }
 
 func NewApiServer(
-	dr DataRetriever,
+	dr data.Retriever,
 	grpcListenAddress string,
 	apiListenAddr string,
 	gatewayClient *gatewayClient,
@@ -115,7 +116,7 @@ func makeHTTPHandlerFunc(fn HTTPFunc) http.HandlerFunc {
 	}
 }
 
-func handleGetBlockByHeight(dr DataRetriever) HTTPFunc {
+func handleGetBlockByHeight(dr data.Retriever) HTTPFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		req := requests.GetBlockByHeightRequest{}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -138,7 +139,7 @@ func handleGetBlockByHeight(dr DataRetriever) HTTPFunc {
 	}
 }
 
-func handleGetUTXOsByAddress(dr DataRetriever) HTTPFunc {
+func handleGetUTXOsByAddress(dr data.Retriever) HTTPFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		req := requests.GetUTXOsByAddressRequest{}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -162,7 +163,7 @@ func handleGetUTXOsByAddress(dr DataRetriever) HTTPFunc {
 	}
 }
 
-func handleNewTransaction(dr DataRetriever, c *client.GRPCClient) HTTPFunc {
+func handleNewTransaction(dr data.Retriever, c *client.GRPCClient) HTTPFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		req := requests.NewTransactionRequest{}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -192,9 +193,9 @@ func handleNewTransaction(dr DataRetriever, c *client.GRPCClient) HTTPFunc {
 	}
 }
 
-func handleGetCurrentHeight(dr DataRetriever) HTTPFunc {
+func handleGetCurrentHeight(dr data.Retriever) HTTPFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		height := dr.Chain().headers.Height()
+		height := dr.Chain().Height()
 		return writeJSON(w, http.StatusOK, requests.GetCurrentHeightResponse{
 			Height: height,
 		})

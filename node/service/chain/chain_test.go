@@ -1,4 +1,4 @@
-package service
+package chain
 
 import (
 	"testing"
@@ -18,7 +18,7 @@ func TestNewChain(t *testing.T) {
 		utxoStore  = store.NewMemoryUTXOStore()
 	)
 
-	chain := NewChain(txStore, blockStore, utxoStore)
+	chain := New(txStore, blockStore, utxoStore)
 	assert.Equal(t, 0, chain.Height())
 
 	assert.Equal(t, 1, len(chain.headers.headers))
@@ -27,7 +27,7 @@ func TestNewChain(t *testing.T) {
 }
 
 func TestChainAddBlock(t *testing.T) {
-	chain := NewChain(store.NewMemoryTxStore(), store.NewMemoryBlockStore(), store.NewMemoryUTXOStore())
+	chain := New(store.NewMemoryTxStore(), store.NewMemoryBlockStore(), store.NewMemoryUTXOStore())
 	assert.Equal(t, 0, chain.Height())
 
 	for i := 0; i < 10; i++ {
@@ -42,7 +42,7 @@ func TestChainAddBlock(t *testing.T) {
 }
 
 func TestChainAddBlockWithTxs(t *testing.T) {
-	chain := NewChain(store.NewMemoryTxStore(), store.NewMemoryBlockStore(), store.NewMemoryUTXOStore())
+	chain := New(store.NewMemoryTxStore(), store.NewMemoryBlockStore(), store.NewMemoryUTXOStore())
 	assert.Equal(t, 0, chain.Height())
 	myPrivKey := crypto.PrivateKeyFromString(godSeed)
 	toAddress := crypto.GeneratePrivateKey().PublicKey().Address()

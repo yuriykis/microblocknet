@@ -10,6 +10,7 @@ import (
 	"github.com/yuriykis/microblocknet/common/proto"
 	"github.com/yuriykis/microblocknet/node/secure"
 	"github.com/yuriykis/microblocknet/node/service/client"
+	"github.com/yuriykis/microblocknet/node/service/data"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	grpcPeer "google.golang.org/grpc/peer"
@@ -39,12 +40,13 @@ type ServerConfig struct {
 	ApiListenAddr string
 	PrivateKey    *crypto.PrivateKey
 }
+
 type node struct {
 	ServerConfig
 
 	logger *zap.SugaredLogger
 
-	dr DataRetriever
+	dr data.Retriever
 	nm *networkManager
 
 	isMiner bool
@@ -80,7 +82,7 @@ func New(listenAddress string, apiListenAddress string, gatewayAddress string, c
 		},
 
 		logger: logger,
-		dr:     NewDataRetriever(),
+		dr:     data.NewRetriever(),
 		nm:     NewNetworkManager(listenAddress, logger),
 
 		gatewayClient: NewGatewayClient(gatewayAddress, logger),
@@ -203,7 +205,7 @@ func (n *node) GetBlocks(ctx context.Context, v *proto.Version) (*proto.Blocks, 
 }
 
 func (n *node) addMempoolToBlock(block *proto.Block) {
-	for _, tx := range n.dr.Mempool().list() {
+	for _, tx := range n.dr.MempoolList() {
 		block.Transactions = append(block.Transactions, tx)
 	}
 
@@ -312,13 +314,13 @@ func (n *node) showNodeInfo(quitCh chan struct{}, netLogging bool, blockchainLog
 			if netLogging {
 				n.logger.Infof("Node %s, peers: %v", n, n.nm.peersAddrs(context.TODO()))
 				// n.logger.Infof("Node %s, knownAddrs: %v", n, n.knownAddrs.list())
-				n.logger.Infof("Node %s, mempool: %v", n, n.dr.Mempool().list())
+				n.logger.Infof("Node %s, mempool: %v", n, n.dr.MempoolList())
 			}
 			if blockchainLogging {
 				n.logger.Infof("Node %s, blockchain height: %d", n, n.dr.Chain().Height())
-				n.logger.Infof("Node %s, blocks in blockchain: %v", n, len(n.dr.Chain().blockStore.List()))
-				n.logger.Infof("Node %s, transactions in blockchain: %v", n, len(n.dr.Chain().txStore.List()))
-				n.logger.Infof("Node %s, utxos in blockchain: %v", n, len(n.dr.Chain().utxoStore.List()))
+				n.logger.Infof("Node %s, blocks in blockchain: %v", n, len(n.dr.Chain().BlockStore().List()))
+				n.logger.Infof("Node %s, transactions in blockchain: %v", n, len(n.dr.Chain().TxStore().List()))
+				n.logger.Infof("Node %s, utxos in blockchain: %v", n, len(n.dr.Chain().UTXOStore().List()))
 			}
 			time.Sleep(3 * time.Second)
 		}

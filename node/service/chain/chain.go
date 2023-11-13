@@ -1,4 +1,4 @@
-package service
+package chain
 
 import (
 	"bytes"
@@ -47,7 +47,7 @@ type Chain struct {
 	headers    *HeadersList
 }
 
-func NewChain(txStore store.TxStorer, blockStore store.BlockStorer, utxoStore store.UTXOStorer) *Chain {
+func New(txStore store.TxStorer, blockStore store.BlockStorer, utxoStore store.UTXOStorer) *Chain {
 	chain := &Chain{
 		txStore:    txStore,
 		blockStore: blockStore,
@@ -56,6 +56,18 @@ func NewChain(txStore store.TxStorer, blockStore store.BlockStorer, utxoStore st
 	}
 	chain.addBlock(genesisBlock())
 	return chain
+}
+
+func (c *Chain) UTXOStore() store.UTXOStorer {
+	return c.utxoStore
+}
+
+func (c *Chain) TxStore() store.TxStorer {
+	return c.txStore
+}
+
+func (c *Chain) BlockStore() store.BlockStorer {
+	return c.blockStore
 }
 
 func (c *Chain) Height() int {
