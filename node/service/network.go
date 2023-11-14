@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/yuriykis/microblocknet/common/proto"
-	"github.com/yuriykis/microblocknet/node/service/client"
+	"github.com/yuriykis/microblocknet/node/client"
 	"go.uber.org/zap"
 )
 

@@ -8,9 +8,9 @@ import (
 
 	"github.com/yuriykis/microblocknet/common/crypto"
 	"github.com/yuriykis/microblocknet/common/proto"
+	"github.com/yuriykis/microblocknet/node/chain"
+	"github.com/yuriykis/microblocknet/node/client"
 	"github.com/yuriykis/microblocknet/node/secure"
-	"github.com/yuriykis/microblocknet/node/service/client"
-	"github.com/yuriykis/microblocknet/node/service/data"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	grpcPeer "google.golang.org/grpc/peer"
@@ -34,6 +34,11 @@ type Node interface {
 	GetBlocks(ctx context.Context, v *proto.Version) (*proto.Blocks, error)
 }
 
+type Api interface {
+	Chain() *chain.Chain
+	Gate() *gatewayClient
+}
+
 type ServerConfig struct {
 	Version       string
 	ListenAddress string
@@ -46,16 +51,15 @@ type node struct {
 
 	logger *zap.SugaredLogger
 
-	dr data.Retriever
 	nm *networkManager
 
 	isMiner bool
 
-	nodeServer    NodeServer
-	apiServer     ApiServer
+	chain         *chain.Chain
+	mempool       *Mempool
 	consulService *ConsulService
 
-	*gatewayClient
+	gate *gatewayClient
 
 	quitNode
 }
@@ -82,10 +86,9 @@ func New(listenAddress string, apiListenAddress string, gatewayAddress string, c
 		},
 
 		logger: logger,
-		dr:     data.NewRetriever(),
 		nm:     NewNetworkManager(listenAddress, logger),
 
-		gatewayClient: NewGatewayClient(gatewayAddress, logger),
+		gate:          NewGatewayClient(gatewayAddress, logger),
 		consulService: NewConsulService(logger, consulServiceAddress),
 
 		quitNode: quitNode{
@@ -129,6 +132,14 @@ func (n *node) Stop(ctx context.Context) error {
 	return stopGRPCTransport(n.nodeServer)
 }
 
+func (n *node) Chain() *chain.Chain {
+	return n.Chain()
+}
+
+func (r *node) Mempool() *Mempool {
+	return r.mempool
+}
+
 func (n *node) String() string {
 	return n.ListenAddress
 }
@@ -160,10 +171,10 @@ func (n *node) NewTransaction(
 	}
 	n.logger.Infof("node: %s, received transaction from %s", n, peer.Addr.String())
 
-	if n.dr.Mempool().Contains(t) {
+	if n.Mempool().Contains(t) {
 		return nil, fmt.Errorf("node: %s, transaction already exists in mempool", n)
 	}
-	n.dr.Mempool().Add(t)
+	n.Mempool().Add(t)
 	n.logger.Infof("node: %s, transaction added to mempool", n)
 
 	// check how to broadcast transaction when peer is not available
@@ -179,7 +190,7 @@ func (n *node) NewBlock(ctx context.Context, b *proto.Block) (*proto.Block, erro
 	}
 	n.logger.Infof("node: %s, received block from %s", n, peer.Addr.String())
 
-	if err := n.dr.Chain().AddBlock(b); err != nil {
+	if err := n.Chain().AddBlock(b); err != nil {
 		return nil, err
 	}
 	n.logger.Infof("node: %s, block with height %d added to blockchain", n, b.Header.Height)
@@ -194,8 +205,8 @@ func (n *node) NewBlock(ctx context.Context, b *proto.Block) (*proto.Block, erro
 
 func (n *node) GetBlocks(ctx context.Context, v *proto.Version) (*proto.Blocks, error) {
 	blocks := &proto.Blocks{}
-	for i := 0; i < n.dr.Chain().Height(); i++ {
-		block, err := n.dr.Chain().GetBlockByHeight(i)
+	for i := 0; i < n.Chain().Height(); i++ {
+		block, err := n.Chain().GetBlockByHeight(i)
 		if err != nil {
 			return nil, err
 		}
@@ -205,24 +216,24 @@ func (n *node) GetBlocks(ctx context.Context, v *proto.Version) (*proto.Blocks, 
 }
 
 func (n *node) addMempoolToBlock(block *proto.Block) {
-	for _, tx := range n.dr.Mempool().List() {
+	for _, tx := range n.Mempool().List() {
 		block.Transactions = append(block.Transactions, tx)
 	}
 
 	// probably we should clear mempool after the block is mined
-	n.dr.Mempool().Clear()
+	n.Mempool().Clear()
 }
 
 func (n *node) clearMempool(b *proto.Block) {
 	for _, tx := range b.Transactions {
-		n.dr.Mempool().Remove(tx)
+		n.Mempool().Remove(tx)
 	}
 }
 
 func (n *node) mineBlock(newBlockCh chan<- *proto.Block, stopMineBlockCh <-chan struct{}) {
 	n.logger.Infof("node: %s, starting mining block\n", n)
 
-	lastBlock, err := n.dr.Chain().GetBlockByHeight(n.dr.Chain().Height())
+	lastBlock, err := n.Chain().GetBlockByHeight(n.Chain().Height())
 	if err != nil {
 		n.logger.Errorf("node: %s, failed to get last block: %v", n, err)
 		return
@@ -288,7 +299,7 @@ func (n *node) minerLoop() {
 				block.PublicKey = n.PrivateKey.PublicKey().Bytes()
 				secure.SignBlock(block, n.PrivateKey)
 
-				n.dr.Chain().AddBlock(block)
+				n.Chain().AddBlock(block)
 				n.logger.Infof("node: %s, broadcast block: %s\n", n, secure.HashBlock(block))
 				n.nm.broadcast(block)
 				break mining
@@ -314,13 +325,13 @@ func (n *node) showNodeInfo(quitCh chan struct{}, netLogging bool, blockchainLog
 			if netLogging {
 				n.logger.Infof("Node %s, peers: %v", n, n.nm.peersAddrs(context.TODO()))
 				// n.logger.Infof("Node %s, knownAddrs: %v", n, n.knownAddrs.list())
-				n.logger.Infof("Node %s, mempool: %v", n, n.dr.Mempool().List())
+				n.logger.Infof("Node %s, mempool: %v", n, n.Mempool().List())
 			}
 			if blockchainLogging {
-				n.logger.Infof("Node %s, blockchain height: %d", n, n.dr.Chain().Height())
-				n.logger.Infof("Node %s, blocks in blockchain: %v", n, len(n.dr.Chain().Store().BlockStore().List()))
-				n.logger.Infof("Node %s, transactions in blockchain: %v", n, len(n.dr.Chain().Store().TxStore().List()))
-				n.logger.Infof("Node %s, utxos in blockchain: %v", n, len(n.dr.Chain().Store().UTXOStore().List()))
+				n.logger.Infof("Node %s, blockchain height: %d", n, n.Chain().Height())
+				n.logger.Infof("Node %s, blocks in blockchain: %v", n, len(n.Chain().Store().BlockStore().List()))
+				n.logger.Infof("Node %s, transactions in blockchain: %v", n, len(n.Chain().Store().TxStore().List()))
+				n.logger.Infof("Node %s, utxos in blockchain: %v", n, len(n.Chain().Store().UTXOStore().List()))
 			}
 			time.Sleep(3 * time.Second)
 		}
@@ -329,7 +340,7 @@ func (n *node) showNodeInfo(quitCh chan struct{}, netLogging bool, blockchainLog
 
 func (n *node) processBlocks(blocks *proto.Blocks) error {
 	for _, block := range blocks.Blocks {
-		if err := n.dr.Chain().AddBlock(block); err != nil {
+		if err := n.Chain().AddBlock(block); err != nil {
 			return err
 		}
 	}
