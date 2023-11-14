@@ -205,7 +205,7 @@ func (n *node) GetBlocks(ctx context.Context, v *proto.Version) (*proto.Blocks, 
 }
 
 func (n *node) addMempoolToBlock(block *proto.Block) {
-	for _, tx := range n.dr.MempoolList() {
+	for _, tx := range n.dr.Mempool().List() {
 		block.Transactions = append(block.Transactions, tx)
 	}
 
@@ -314,7 +314,7 @@ func (n *node) showNodeInfo(quitCh chan struct{}, netLogging bool, blockchainLog
 			if netLogging {
 				n.logger.Infof("Node %s, peers: %v", n, n.nm.peersAddrs(context.TODO()))
 				// n.logger.Infof("Node %s, knownAddrs: %v", n, n.knownAddrs.list())
-				n.logger.Infof("Node %s, mempool: %v", n, n.dr.MempoolList())
+				n.logger.Infof("Node %s, mempool: %v", n, n.dr.Mempool().List())
 			}
 			if blockchainLogging {
 				n.logger.Infof("Node %s, blockchain height: %d", n, n.dr.Chain().Height())

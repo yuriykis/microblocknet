@@ -12,7 +12,6 @@ type Retriever interface {
 	GetBlockByHeight(ctx context.Context, height int) (*proto.Block, error)
 	GetUTXOsByAddress(ctx context.Context, address []byte) ([]*proto.UTXO, error)
 	Mempool() *Mempool
-	MempoolList() []*proto.Transaction
 	Chain() *chain.Chain
 }
 
@@ -42,10 +41,6 @@ func (r *dataRetriever) GetUTXOsByAddress(ctx context.Context, address []byte) (
 
 func (r *dataRetriever) Mempool() *Mempool {
 	return r.mempool
-}
-
-func (r *dataRetriever) MempoolList() []*proto.Transaction {
-	return r.mempool.list()
 }
 
 func (r *dataRetriever) Chain() *chain.Chain {

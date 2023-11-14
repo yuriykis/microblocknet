@@ -46,7 +46,7 @@ func (m *Mempool) Remove(tx *proto.Transaction) {
 	delete(m.txs, hashTx)
 }
 
-func (m *Mempool) list() []*proto.Transaction {
+func (m *Mempool) List() []*proto.Transaction {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 	txs := make([]*proto.Transaction, 0)
