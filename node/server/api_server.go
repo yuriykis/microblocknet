@@ -1,4 +1,4 @@
-package service
+package server
 
 import (
 	"context"
@@ -9,60 +9,24 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/yuriykis/microblocknet/common/requests"
-	"github.com/yuriykis/microblocknet/node/service/client"
-	"github.com/yuriykis/microblocknet/node/service/data"
+	"github.com/yuriykis/microblocknet/node/client"
+	"github.com/yuriykis/microblocknet/node/service"
 	grpcPeer "google.golang.org/grpc/peer"
 )
 
-// the api server is used to expose the node's functionality the gateway
-type ApiServer interface {
-	Start(ctx context.Context) error
-	Stop(ctx context.Context) error
-}
-
-type apiServer struct {
-	apiListenAddr string
-	httpServer    *http.Server
-	grpcClient    *client.GRPCClient
-	gatewayClient *gatewayClient
-	dr            data.Retriever
-}
-
-func NewApiServer(
-	dr data.Retriever,
-	grpcListenAddress string,
-	apiListenAddr string,
-	gatewayClient *gatewayClient,
-) (*apiServer, error) {
-	httpServer := &http.Server{
-		Addr: apiListenAddr,
-	}
-	grpcClient, err := client.NewGRPCClient(grpcListenAddress)
-	if err != nil {
-		return nil, err
-	}
-	return &apiServer{
-		apiListenAddr: apiListenAddr,
-		httpServer:    httpServer,
-		grpcClient:    grpcClient,
-		gatewayClient: gatewayClient,
-		dr:            dr,
-	}, nil
-}
-
-func (s *apiServer) Start(ctx context.Context) error {
+func StartApiTrasport(s *ApiNodeServer) error {
 	s.httpServer.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/block":
-			makeHTTPHandlerFunc(handleGetBlockByHeight(s.dr))(w, r)
+			makeHTTPHandlerFunc(handleGetBlockByHeight(s.node))(w, r)
 		case "/utxo":
-			makeHTTPHandlerFunc(handleGetUTXOsByAddress(s.dr))(w, r)
+			makeHTTPHandlerFunc(handleGetUTXOsByAddress(s.node))(w, r)
 		case "/transaction":
-			makeHTTPHandlerFunc(handleNewTransaction(s.dr, s.grpcClient))(w, r)
+			makeHTTPHandlerFunc(handleNewTransaction(s.node, s.grpcClient))(w, r)
 		case "/height":
-			makeHTTPHandlerFunc(handleGetCurrentHeight(s.dr))(w, r)
+			makeHTTPHandlerFunc(handleGetCurrentHeight(s.node))(w, r)
 		case "/healthcheck":
-			makeHTTPHandlerFunc(handleHealthCheck(s.gatewayClient))(w, r)
+			makeHTTPHandlerFunc(handleHealthCheck(s.node))(w, r)
 		case "/metrics":
 			promhttp.Handler().ServeHTTP(w, r)
 		default:
@@ -78,8 +42,35 @@ func (s *apiServer) Start(ctx context.Context) error {
 	return s.httpServer.ListenAndServe()
 }
 
-func (s *apiServer) Stop(ctx context.Context) error {
+func StopApiTransport(s *ApiNodeServer) error {
 	return s.httpServer.Close()
+}
+
+type ApiNodeServer struct {
+	apiListenAddr string
+	httpServer    *http.Server
+	grpcClient    *client.GRPCClient
+	node          service.Api
+}
+
+func NewApiServer(
+	grpcListenAddress string,
+	apiListenAddr string,
+	node service.Api,
+) (*ApiNodeServer, error) {
+	httpServer := &http.Server{
+		Addr: apiListenAddr,
+	}
+	grpcClient, err := client.NewGRPCClient(grpcListenAddress)
+	if err != nil {
+		return nil, err
+	}
+	return &ApiNodeServer{
+		apiListenAddr: apiListenAddr,
+		httpServer:    httpServer,
+		grpcClient:    grpcClient,
+		node:          node,
+	}, nil
 }
 
 type HTTPFunc func(w http.ResponseWriter, r *http.Request) error
@@ -116,7 +107,7 @@ func makeHTTPHandlerFunc(fn HTTPFunc) http.HandlerFunc {
 	}
 }
 
-func handleGetBlockByHeight(dr data.Retriever) HTTPFunc {
+func handleGetBlockByHeight(node service.Api) HTTPFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		req := requests.GetBlockByHeightRequest{}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -125,7 +116,7 @@ func handleGetBlockByHeight(dr data.Retriever) HTTPFunc {
 				Err:  fmt.Errorf("failed to decode request body: %w", err),
 			}
 		}
-		block, err := dr.GetBlockByHeight(context.Background(), req.Height)
+		block, err := node.Chain().GetBlockByHeight(req.Height)
 		if err != nil {
 			return APIError{
 				Code: http.StatusInternalServerError,
@@ -139,7 +130,7 @@ func handleGetBlockByHeight(dr data.Retriever) HTTPFunc {
 	}
 }
 
-func handleGetUTXOsByAddress(dr data.Retriever) HTTPFunc {
+func handleGetUTXOsByAddress(node service.Api) HTTPFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		req := requests.GetUTXOsByAddressRequest{}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -149,7 +140,7 @@ func handleGetUTXOsByAddress(dr data.Retriever) HTTPFunc {
 				Err:  fmt.Errorf("failed to decode request body: %w", err),
 			}
 		}
-		utxos, err := dr.GetUTXOsByAddress(context.Background(), req.Address)
+		utxos, err := node.Chain().Store().UTXOStore().GetByAddress(req.Address)
 		if err != nil {
 			fmt.Println(err)
 			return APIError{
@@ -163,7 +154,7 @@ func handleGetUTXOsByAddress(dr data.Retriever) HTTPFunc {
 	}
 }
 
-func handleNewTransaction(dr data.Retriever, c *client.GRPCClient) HTTPFunc {
+func handleNewTransaction(node service.Api, c *client.GRPCClient) HTTPFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		req := requests.NewTransactionRequest{}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -193,18 +184,18 @@ func handleNewTransaction(dr data.Retriever, c *client.GRPCClient) HTTPFunc {
 	}
 }
 
-func handleGetCurrentHeight(dr data.Retriever) HTTPFunc {
+func handleGetCurrentHeight(node service.Api) HTTPFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		height := dr.Chain().Height()
+		height := node.Chain().Height()
 		return writeJSON(w, http.StatusOK, requests.GetCurrentHeightResponse{
 			Height: height,
 		})
 	}
 }
 
-func handleHealthCheck(gateway *gatewayClient) HTTPFunc {
+func handleHealthCheck(node service.Api) HTTPFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
-		gateway.SetConnected(true)
+		node.Gate().SetConnected(true)
 		return writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	}
 }

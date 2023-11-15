@@ -6,7 +6,7 @@ import (
 	"math/rand"
 	"time"
 
-	api "github.com/yuriykis/microblocknet/node/service/api_client"
+	api "github.com/yuriykis/microblocknet/node/api_client"
 	"go.uber.org/zap"
 )
 

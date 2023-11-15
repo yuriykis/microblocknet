@@ -1,4 +1,4 @@
-package service
+package middleware
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 	"net"
 
 	"github.com/yuriykis/microblocknet/common/proto"
+	"github.com/yuriykis/microblocknet/node/service"
 	"google.golang.org/grpc"
 )
 
@@ -20,13 +21,13 @@ type NodeServer interface {
 
 type GRPCNodeServer struct {
 	proto.UnimplementedNodeServer
-	node Node
+	node service.Noder
 
 	grpcServer     *grpc.Server
 	nodeListenAddr string
 }
 
-func NewGRPCNodeServer(node Node, nodeListenAddr string) *GRPCNodeServer {
+func NewGRPCNodeServer(node service.Noder, nodeListenAddr string) *GRPCNodeServer {
 	fmt.Printf("Node %s, starting GRPC transport\n", nodeListenAddr)
 	var (
 		opt        = []grpc.ServerOption{}
@@ -63,11 +64,7 @@ func (s *GRPCNodeServer) String() string {
 	return s.nodeListenAddr[len(s.nodeListenAddr)-4:]
 }
 
-func startGRPCTransport(n NodeServer) error {
-	s, ok := n.(*GRPCNodeServer)
-	if !ok {
-		return fmt.Errorf("invalid GRPCNodeServer")
-	}
+func (s *GRPCNodeServer) Serve() error {
 	ln, err := net.Listen("tcp", s.nodeListenAddr)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
@@ -76,11 +73,6 @@ func startGRPCTransport(n NodeServer) error {
 	return s.grpcServer.Serve(ln)
 }
 
-func stopGRPCTransport(n NodeServer) error {
-	s, ok := n.(*GRPCNodeServer)
-	if !ok {
-		return fmt.Errorf("invalid GRPCNodeServer")
-	}
+func (s *GRPCNodeServer) Stop() {
 	s.grpcServer.GracefulStop()
-	return nil
 }
