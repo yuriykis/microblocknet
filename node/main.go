@@ -1,14 +1,13 @@
 package main
 
 import (
-	"context"
 	"log"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/yuriykis/microblocknet/node/service"
+	"github.com/yuriykis/microblocknet/node/boot"
 )
 
 const (
@@ -60,45 +59,74 @@ func main() {
 		gatewayAddress = "http://localhost:6000"
 	}
 
-	n := service.New(listenAddr, apiListenAddr, gatewayAddress, consulServiceAddr)
+	nb := NewNodeBuilder(
+		listenAddr,
+		apiListenAddr,
+		gatewayAddress,
+		consulServiceAddr,
+		bootstrapNodes,
+		isMiner,
+	)
+	err = nb.Build()
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	log.Fatal(n.Start(context.TODO(), bootstrapNodes, isMiner))
+	log.Fatal(boot.BootNode(nb.bootOpts, nb.node, nb.apiServer, nb.grpcServer))
 }
 
 // for debugging
 func debug() {
 
 	var (
-		n1 = service.New("localhost:4000", "localhost:8000", "http://localhost:6000", "127.0.0.1:10000")
-		n2 = service.New("localhost:4001", "localhost:8001", "http://localhost:6000", "127.0.0.1:10001")
-		n3 = service.New("localhost:4002", "localhost:8002", "http://localhost:6000", "127.0.0.1:10002")
-		n4 = service.New("localhost:4003", "localhost:8003", "http://localhost:6000", "127.0.0.1:10003")
+		nb1 = NewNodeBuilder(
+			"localhost:4000",
+			"localhost:8000",
+			"http://localhost:6000",
+			"localhost:10000",
+			[]string{},
+			true,
+		)
+		nb2 = NewNodeBuilder(
+			"localhost:4001",
+			"localhost:8001",
+			"http://localhost:6000",
+			"localhost:10001",
+			[]string{"localhost:4000"},
+			false,
+		)
+		nb3 = NewNodeBuilder(
+			"localhost:4002",
+			"localhost:8002",
+			"http://localhost:6000",
+			"localhost:10002",
+			[]string{"localhost:4000"},
+			false,
+		)
+		nb4 = NewNodeBuilder(
+			"localhost:4003",
+			"localhost:8003",
+			"http://localhost:6000",
+			"localhost:10003",
+			[]string{"localhost:4000"},
+			false,
+		)
 	)
+	for _, nb := range []*NodeBuilder{nb1, nb2, nb3, nb4} {
+		err := nb.Build()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
 
-	go func() {
-		err := n1.Start(context.TODO(), []string{}, true)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}()
-	go func() {
-		err := n2.Start(context.TODO(), []string{"localhost:4000"}, false)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}()
-	go func() {
-		err := n3.Start(context.TODO(), []string{"localhost:4000"}, false)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}()
-	go func() {
-		err := n4.Start(context.TODO(), []string{"localhost:4000"}, false)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}()
+	for _, nb := range []*NodeBuilder{nb1, nb2, nb3, nb4} {
+		go func(nb *NodeBuilder) {
+			err := boot.BootNode(nb.bootOpts, nb.node, nb.apiServer, nb.grpcServer)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}(nb)
+	}
 
 	// go sendTransaction(n1, 5, 0, 99900)
 	// go sendTransaction(n2, 20, 1, 98000)
@@ -109,9 +137,9 @@ func debug() {
 	select {}
 }
 
-func stop(n service.Service, duration time.Duration) {
+func stop(nb *NodeBuilder, duration time.Duration) {
 	time.Sleep(duration * time.Second)
-	n.Stop(context.TODO())
+	boot.StopNode(nb.node, nb.apiServer, nb.grpcServer)
 }
 
 // func sendTransaction(n service.Service, duration time.Duration, height int, currentValue int64) {

@@ -11,6 +11,7 @@ import (
 	"github.com/yuriykis/microblocknet/node/chain"
 	"github.com/yuriykis/microblocknet/node/client"
 	"github.com/yuriykis/microblocknet/node/secure"
+	"github.com/yuriykis/microblocknet/node/store"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	grpcPeer "google.golang.org/grpc/peer"
@@ -22,12 +23,7 @@ const (
 	syncBlockchainInterval = 5 * time.Second
 )
 
-type Service interface {
-	Start(ctx context.Context, bootstrapNodes []string, isMiner bool) error
-	Stop(ctx context.Context) error
-}
-
-type Node interface {
+type Noder interface {
 	Handshake(ctx context.Context, v *proto.Version) (*proto.Version, error)
 	NewTransaction(ctx context.Context, t *proto.Transaction) (*proto.Transaction, error)
 	NewBlock(ctx context.Context, b *proto.Block) (*proto.Block, error)
@@ -39,27 +35,34 @@ type Api interface {
 	Gate() *gatewayClient
 }
 
-type ServerConfig struct {
-	Version       string
-	ListenAddress string
-	ApiListenAddr string
-	PrivateKey    *crypto.PrivateKey
+type NodeOpts struct {
+	BootstrapNodes []string
+	IsMiner        bool
 }
 
-type node struct {
+type ServerConfig struct {
+	Version              string
+	NodeListenAddress    string
+	ApiListenAddr        string
+	GatewayAddress       string
+	ConsulServiceAddress string
+}
+
+type Node struct {
 	ServerConfig
+
+	isMiner    bool
+	PrivateKey *crypto.PrivateKey
 
 	logger *zap.SugaredLogger
 
 	nm *networkManager
 
-	isMiner bool
+	chain   *chain.Chain
+	mempool *Mempool
 
-	chain         *chain.Chain
-	mempool       *Mempool
+	gate          *gatewayClient
 	consulService *ConsulService
-
-	gate *gatewayClient
 
 	quitNode
 }
@@ -70,26 +73,25 @@ type quitNode struct {
 	pingQuitCh           chan struct{}
 }
 
-func (n *node) shutdown() {
+func (n *Node) shutdown() {
 	close(n.showNodeInfoQuitCh)
 	close(n.syncBlockchainQuitCh)
 }
 
-func New(listenAddress string, apiListenAddress string, gatewayAddress string, consulServiceAddress string) Service {
+func New(conf ServerConfig) *Node {
 	logger := makeLogger()
-	return &node{
-		ServerConfig: ServerConfig{
-			Version:       "0.0.1",
-			ListenAddress: listenAddress,
-			ApiListenAddr: apiListenAddress,
-			PrivateKey:    nil,
-		},
+	return &Node{
+		ServerConfig: conf,
 
 		logger: logger,
-		nm:     NewNetworkManager(listenAddress, logger),
 
-		gate:          NewGatewayClient(gatewayAddress, logger),
-		consulService: NewConsulService(logger, consulServiceAddress),
+		nm: NewNetworkManager(conf.NodeListenAddress, logger),
+
+		chain:   chain.New(store.NewChainMemoryStore()),
+		mempool: NewMempool(),
+
+		gate:          NewGatewayClient(conf.GatewayAddress, logger),
+		consulService: NewConsulService(logger, conf.ConsulServiceAddress),
 
 		quitNode: quitNode{
 			showNodeInfoQuitCh:   make(chan struct{}),
@@ -98,57 +100,52 @@ func New(listenAddress string, apiListenAddress string, gatewayAddress string, c
 	}
 }
 
-func (n *node) Start(ctx context.Context, bootstrapNodes []string, isMiner bool) error {
+func (n *Node) Start(opts NodeOpts) error {
 
-	n.nm.start(bootstrapNodes)
+	n.nm.start(opts.BootstrapNodes)
 	n.consulService.Start()
 
 	go n.syncBlockchainLoop(n.syncBlockchainQuitCh)
 	go n.showNodeInfo(n.showNodeInfoQuitCh, false, true)
 
-	if isMiner {
-		n.isMiner = isMiner
+	if opts.IsMiner {
+		n.isMiner = opts.IsMiner
 		n.PrivateKey = crypto.GeneratePrivateKey()
 		go n.minerLoop()
 	}
 
-	api, err := NewApiServer(n.dr, n.ListenAddress, n.ApiListenAddr, n.gatewayClient)
-	if err != nil {
-		return err
-	}
-	n.apiServer = api
-	go n.apiServer.Start(context.TODO())
+	go n.Gate().registerGatewayLoop(n.pingQuitCh, n.ApiListenAddr)
 
-	go n.registerGatewayLoop(n.pingQuitCh, n.ApiListenAddr)
-
-	n.nodeServer = NewGRPCNodeServer(NewMetricsMiddleware(n), n.ListenAddress)
-	return startGRPCTransport(n.nodeServer)
+	return nil
 }
 
-func (n *node) Stop(ctx context.Context) error {
+func (n *Node) Stop() error {
 	n.shutdown()
 	n.nm.stop()
-	n.apiServer.Stop(context.TODO())
-	return stopGRPCTransport(n.nodeServer)
+	return nil
 }
 
-func (n *node) Chain() *chain.Chain {
-	return n.Chain()
+func (n *Node) Chain() *chain.Chain {
+	return n.chain
 }
 
-func (r *node) Mempool() *Mempool {
+func (n *Node) Gate() *gatewayClient {
+	return n.gate
+}
+
+func (r *Node) Mempool() *Mempool {
 	return r.mempool
 }
 
-func (n *node) String() string {
-	return n.ListenAddress
+func (n *Node) String() string {
+	return n.NodeListenAddress
 }
 
-func (n *node) Address() string {
-	return n.ListenAddress
+func (n *Node) Address() string {
+	return n.NodeListenAddress
 }
 
-func (n *node) Handshake(
+func (n *Node) Handshake(
 	ctx context.Context,
 	v *proto.Version,
 ) (*proto.Version, error) {
@@ -157,25 +154,25 @@ func (n *node) Handshake(
 		return nil, err
 	}
 	n.nm.addPeer(c, v)
-	n.logger.Infof("node: %s, sending handshake to %s", n, v.ListenAddress)
+	n.logger.Infof("Node: %s, sending handshake to %s", n, v.ListenAddress)
 	return n.nm.version(), nil
 }
 
-func (n *node) NewTransaction(
+func (n *Node) NewTransaction(
 	ctx context.Context,
 	t *proto.Transaction,
 ) (*proto.Transaction, error) {
 	peer, ok := grpcPeer.FromContext(ctx)
 	if !ok {
-		return nil, fmt.Errorf("node: %s, failed to get peer from context", n)
+		return nil, fmt.Errorf("Node: %s, failed to get peer from context", n)
 	}
-	n.logger.Infof("node: %s, received transaction from %s", n, peer.Addr.String())
+	n.logger.Infof("Node: %s, received transaction from %s", n, peer.Addr.String())
 
 	if n.Mempool().Contains(t) {
-		return nil, fmt.Errorf("node: %s, transaction already exists in mempool", n)
+		return nil, fmt.Errorf("Node: %s, transaction already exists in mempool", n)
 	}
 	n.Mempool().Add(t)
-	n.logger.Infof("node: %s, transaction added to mempool", n)
+	n.logger.Infof("Node: %s, transaction added to mempool", n)
 
 	// check how to broadcast transaction when peer is not available
 	go n.nm.broadcast(t)
@@ -183,17 +180,17 @@ func (n *node) NewTransaction(
 	return t, nil
 }
 
-func (n *node) NewBlock(ctx context.Context, b *proto.Block) (*proto.Block, error) {
+func (n *Node) NewBlock(ctx context.Context, b *proto.Block) (*proto.Block, error) {
 	peer, ok := grpcPeer.FromContext(ctx)
 	if !ok {
-		return nil, fmt.Errorf("node: %s, failed to get peer from context", n)
+		return nil, fmt.Errorf("Node: %s, failed to get peer from context", n)
 	}
-	n.logger.Infof("node: %s, received block from %s", n, peer.Addr.String())
+	n.logger.Infof("Node: %s, received block from %s", n, peer.Addr.String())
 
 	if err := n.Chain().AddBlock(b); err != nil {
 		return nil, err
 	}
-	n.logger.Infof("node: %s, block with height %d added to blockchain", n, b.Header.Height)
+	n.logger.Infof("Node: %s, block with height %d added to blockchain", n, b.Header.Height)
 
 	n.clearMempool(b)
 
@@ -203,7 +200,7 @@ func (n *node) NewBlock(ctx context.Context, b *proto.Block) (*proto.Block, erro
 	return b, nil
 }
 
-func (n *node) GetBlocks(ctx context.Context, v *proto.Version) (*proto.Blocks, error) {
+func (n *Node) GetBlocks(ctx context.Context, v *proto.Version) (*proto.Blocks, error) {
 	blocks := &proto.Blocks{}
 	for i := 0; i < n.Chain().Height(); i++ {
 		block, err := n.Chain().GetBlockByHeight(i)
@@ -215,7 +212,7 @@ func (n *node) GetBlocks(ctx context.Context, v *proto.Version) (*proto.Blocks, 
 	return blocks, nil
 }
 
-func (n *node) addMempoolToBlock(block *proto.Block) {
+func (n *Node) addMempoolToBlock(block *proto.Block) {
 	for _, tx := range n.Mempool().List() {
 		block.Transactions = append(block.Transactions, tx)
 	}
@@ -224,18 +221,18 @@ func (n *node) addMempoolToBlock(block *proto.Block) {
 	n.Mempool().Clear()
 }
 
-func (n *node) clearMempool(b *proto.Block) {
+func (n *Node) clearMempool(b *proto.Block) {
 	for _, tx := range b.Transactions {
 		n.Mempool().Remove(tx)
 	}
 }
 
-func (n *node) mineBlock(newBlockCh chan<- *proto.Block, stopMineBlockCh <-chan struct{}) {
-	n.logger.Infof("node: %s, starting mining block\n", n)
+func (n *Node) mineBlock(newBlockCh chan<- *proto.Block, stopMineBlockCh <-chan struct{}) {
+	n.logger.Infof("Node: %s, starting mining block\n", n)
 
 	lastBlock, err := n.Chain().GetBlockByHeight(n.Chain().Height())
 	if err != nil {
-		n.logger.Errorf("node: %s, failed to get last block: %v", n, err)
+		n.logger.Errorf("Node: %s, failed to get last block: %v", n, err)
 		return
 	}
 
@@ -252,19 +249,19 @@ mine:
 	for {
 		select {
 		case <-stopMineBlockCh:
-			n.logger.Infof("node: %s, stopping minerLoop\n", n)
+			n.logger.Infof("Node: %s, stopping minerLoop\n", n)
 			return
 		default:
 			if block.GetTransactions() == nil {
-				n.logger.Infof("node: %s, no transactions in mempool, block will not be mined\n", n)
+				n.logger.Infof("Node: %s, no transactions in mempool, block will not be mined\n", n)
 				break mine
 			}
-			n.logger.Infof("node: %s, mining block\n", n)
+			n.logger.Infof("Node: %s, mining block\n", n)
 			block.Header.Nonce = nonce
 			blockHash := secure.HashBlock(block)
 			fmt.Printf("blockHash: %s\n", blockHash)
 			if secure.VerifyBlockHash(block) {
-				n.logger.Infof("node: %s, mined block: %s\n", n, blockHash)
+				n.logger.Infof("Node: %s, mined block: %s\n", n, blockHash)
 				newBlockCh <- block
 				return
 			}
@@ -274,9 +271,9 @@ mine:
 	newBlockCh <- nil
 }
 
-func (n *node) minerLoop() {
+func (n *Node) minerLoop() {
 	for {
-		n.logger.Infof("node: %s, starting minerLoop\n", n)
+		n.logger.Infof("Node: %s, starting minerLoop\n", n)
 		time.Sleep(miningInterval)
 		newBlockCh := make(chan *proto.Block)
 		stopMineBlockCh := make(chan struct{})
@@ -288,19 +285,19 @@ func (n *node) minerLoop() {
 		for {
 			select {
 			case <-ticker.C:
-				n.logger.Infof("node: %s, stopping minerLoop\n", n)
+				n.logger.Infof("Node: %s, stopping minerLoop\n", n)
 				close(stopMineBlockCh)
 				break mining
 			case block := <-newBlockCh:
 				if block == nil {
-					n.logger.Infof("node: %s, block is nil, will not be added to blockchain\n", n)
+					n.logger.Infof("Node: %s, block is nil, will not be added to blockchain\n", n)
 					break mining
 				}
 				block.PublicKey = n.PrivateKey.PublicKey().Bytes()
 				secure.SignBlock(block, n.PrivateKey)
 
 				n.Chain().AddBlock(block)
-				n.logger.Infof("node: %s, broadcast block: %s\n", n, secure.HashBlock(block))
+				n.logger.Infof("Node: %s, broadcast block: %s\n", n, secure.HashBlock(block))
 				n.nm.broadcast(block)
 				break mining
 			default:
@@ -310,15 +307,15 @@ func (n *node) minerLoop() {
 	}
 }
 
-func (n *node) showNodeInfo(quitCh chan struct{}, netLogging bool, blockchainLogging bool) {
+func (n *Node) showNodeInfo(quitCh chan struct{}, netLogging bool, blockchainLogging bool) {
 	if netLogging || blockchainLogging {
-		n.logger.Infof("node: %s, starting showPeers\n", n)
+		n.logger.Infof("Node: %s, starting showPeers\n", n)
 	}
 	for {
 		select {
 		case <-quitCh:
 			if netLogging || blockchainLogging {
-				n.logger.Infof("node: %s, stopping showPeers", n)
+				n.logger.Infof("Node: %s, stopping showPeers", n)
 			}
 			return
 		default:
@@ -338,7 +335,7 @@ func (n *node) showNodeInfo(quitCh chan struct{}, netLogging bool, blockchainLog
 	}
 }
 
-func (n *node) processBlocks(blocks *proto.Blocks) error {
+func (n *Node) processBlocks(blocks *proto.Blocks) error {
 	for _, block := range blocks.Blocks {
 		if err := n.Chain().AddBlock(block); err != nil {
 			return err
@@ -347,18 +344,18 @@ func (n *node) processBlocks(blocks *proto.Blocks) error {
 	return nil
 }
 
-func (n *node) syncBlockchainLoop(quit chan struct{}) {
+func (n *Node) syncBlockchainLoop(quit chan struct{}) {
 	for {
 		time.Sleep(syncBlockchainInterval)
 		select {
 		case <-quit:
-			n.logger.Infof("node: %s, stopping syncBlockchainLoop", n)
+			n.logger.Infof("Node: %s, stopping syncBlockchainLoop", n)
 			return
 		default:
 			for c := range n.nm.peers.peersForPing() {
 				blocks, err := c.GetBlocks(context.Background(), n.nm.version())
 				if err != nil {
-					n.logger.Errorf("node: %s, failed to get blocks from %s: %v", n, c, err)
+					n.logger.Errorf("Node: %s, failed to get blocks from %s: %v", n, c, err)
 					continue
 				}
 				go n.processBlocks(blocks)

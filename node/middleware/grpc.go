@@ -21,13 +21,13 @@ type NodeServer interface {
 
 type GRPCNodeServer struct {
 	proto.UnimplementedNodeServer
-	node service.Node
+	node service.Noder
 
 	grpcServer     *grpc.Server
 	nodeListenAddr string
 }
 
-func NewGRPCNodeServer(node service.Node, nodeListenAddr string) *GRPCNodeServer {
+func NewGRPCNodeServer(node service.Noder, nodeListenAddr string) *GRPCNodeServer {
 	fmt.Printf("Node %s, starting GRPC transport\n", nodeListenAddr)
 	var (
 		opt        = []grpc.ServerOption{}
