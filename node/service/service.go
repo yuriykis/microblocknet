@@ -87,7 +87,7 @@ func New(conf ServerConfig) *Node {
 
 		nm: NewNetworkManager(conf.NodeListenAddress, logger),
 
-		chain:   chain.New(store.NewChainMemoryStore()),
+		chain:   chain.New(store.NewChainStore("memory")),
 		mempool: NewMempool(),
 
 		gate:          NewGatewayClient(conf.GatewayAddress, logger),

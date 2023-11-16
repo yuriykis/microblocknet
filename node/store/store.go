@@ -4,20 +4,33 @@ import (
 	"github.com/yuriykis/microblocknet/common/proto"
 )
 
+const (
+	storeTypeMemory = "memory"
+)
+
 type Storer interface {
 	UTXOStore() UTXOStorer
 	TxStore() TxStorer
 	BlockStore() BlockStorer
 }
 
-type ChainMemoryStore struct {
-	txStore    TxStorer
-	blockStore BlockStorer
-	utxoStore  UTXOStorer
+func NewChainStore(sType string) Storer {
+	switch sType {
+	case storeTypeMemory:
+		return NewChainMemoryStore()
+	default:
+		return NewChainMemoryStore()
+	}
 }
 
 func NewChainMemoryStore() Storer {
 	return &ChainMemoryStore{}
+}
+
+type ChainMemoryStore struct {
+	txStore    TxStorer
+	blockStore BlockStorer
+	utxoStore  UTXOStorer
 }
 
 func (c *ChainMemoryStore) UTXOStore() UTXOStorer {
