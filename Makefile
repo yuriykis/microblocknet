@@ -15,9 +15,6 @@ gate: gate-build
 node: build-node
 	@DEBUG=true ./$(NODE_SERVICE_NAME)/bin/$(BINARY_NAME)
 
-run: build-node gate-build
-	@DEBUG=true ./$(NODE_SERVICE_NAME)/bin/$(BINARY_NAME) & ./gateway/bin/$(GATEWAY_NAME)
-
 client-build:
 	@cd ./client; go build  -o ./bin/$(CLIENT_NAME) -v
 
