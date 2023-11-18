@@ -32,6 +32,8 @@ MicroBlockNet is a distributed blockchain application consisting of multiple nod
 * Distributed Nodes: Allows for a highly available network of blockchain nodes.
 * Self-Healing: Nodes constantly monitor the network, attempting to reconnect with any unresponsive peers. If a node remains unresponsive, it will be removed from the active network.
 * Docker Integration: Easily set up your blockchain nodes with Docker.
+* Makefile: A Makefile is provided to simplify the process of building and running the application.
+* Monitoring: A monitoring created based on Prometheus and Grafana is provided to monitor the health of the network.
 
 ## Prerequisites
 Before you begin, ensure you have the following installed:
