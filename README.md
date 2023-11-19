@@ -34,6 +34,7 @@ MicroBlockNet is a distributed blockchain application consisting of multiple nod
 * Docker Integration: Easily set up your blockchain nodes with Docker.
 * Makefile: A Makefile is provided to simplify the process of building and running the application.
 * Monitoring: A monitoring created based on Prometheus and Grafana is provided to monitor the health of the network.
+* Consul: Consul is used to provide service discovery and health checks for the nodes.
 
 ## Prerequisites
 Before you begin, ensure you have the following installed:
