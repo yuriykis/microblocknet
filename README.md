@@ -15,9 +15,9 @@
   <p align="center">
     Distributed blockchain application 
     <br />
-    <a href="https://github.com/github_username/repo_name/issues">Report Bug</a>
+    <a href="https://github.com/yuriykis/microblocknet/issues">Report Bug</a>
     ·
-    <a href="https://github.com/github_username/repo_name/issues">Request Feature</a>
+    <a href="https://github.com/yuriykis/microblocknet/issues">Request Feature</a>
   </p>
 </div>
 
@@ -45,7 +45,7 @@ Before you begin, ensure you have the following installed:
 
 1. Clone the repo
    ```sh
-   git clone https://github.com/your-username/microblocknet.git
+   git clone https://github.com/yuriykis/microblocknet.git
    cd microblocknet
     ```
 2. Run the Application
