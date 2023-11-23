@@ -1,8 +1,7 @@
-package main
+package handler
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/yuriykis/microblocknet/common/proto"
@@ -12,76 +11,24 @@ import (
 	"go.uber.org/zap"
 )
 
-type Handler interface {
-	Healthcheck(c *gin.Context)
-	Block(c *gin.Context)
-	UTXO(c *gin.Context)
+type TxHandler interface {
 	InitTransaction(c *gin.Context)
 	NewTransaction(c *gin.Context)
 }
 
-type handler struct {
+type txHandler struct {
 	service service.Service
 	logger  *zap.SugaredLogger
 }
 
-func newHandler(logger *zap.SugaredLogger, service service.Service) *handler {
-	return &handler{
+func NewTxHandler(logger *zap.SugaredLogger, service service.Service) TxHandler {
+	return &txHandler{
 		service: service,
 		logger:  logger,
 	}
 }
 
-func (h *handler) Healthcheck(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"status": "ok",
-	})
-}
-
-func (h *handler) Block(c *gin.Context) {
-	if c.Request.Method == http.MethodGet {
-		heightStr := c.Param("height")
-		if heightStr == "" {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error": "height is required",
-			})
-		}
-		height, err := strconv.Atoi(heightStr)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error": "height must be an integer",
-			})
-		}
-		b, err := h.service.BlockByHeight(c.Request.Context(), height)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": err.Error(),
-			})
-		}
-		c.JSON(http.StatusOK, b)
-	}
-}
-
-func (h *handler) UTXO(c *gin.Context) {
-	if c.Request.Method == http.MethodGet {
-		addressStr := c.Query("address")
-		if addressStr == "" {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error": "address is required",
-			})
-		}
-		address := []byte(addressStr)
-		utxos, err := h.service.UTXOsByAddress(c.Request.Context(), address)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": err.Error(),
-			})
-		}
-		c.JSON(http.StatusOK, utxos)
-	}
-}
-
-func (h *handler) InitTransaction(c *gin.Context) {
+func (h *txHandler) InitTransaction(c *gin.Context) {
 	var (
 		tx  *proto.Transaction
 		err error
@@ -110,7 +57,7 @@ func (h *handler) InitTransaction(c *gin.Context) {
 	})
 }
 
-func (h *handler) NewTransaction(c *gin.Context) {
+func (h *txHandler) NewTransaction(c *gin.Context) {
 	if c.Request.Method == http.MethodPost {
 		var tReq requests.NewTransactionRequest
 		if err := c.ShouldBindJSON(&tReq); err != nil {
