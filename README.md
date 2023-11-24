@@ -51,7 +51,8 @@ Before you begin, ensure you have the following installed:
 2. Run the Application
 If you simply want to run the application:
    ```sh
-   make run
+   make gate
+   make node
    ```
 3. You can use Docker Compose to run the application in the background:
    ```sh
