@@ -54,6 +54,10 @@ If you simply want to run the application:
    make gate
    make node
    ```
+You can also test the application client by running the following command:
+   ```sh
+   make client
+   ```
 3. You can use Docker Compose to run the application in the background:
    ```sh
    make up
