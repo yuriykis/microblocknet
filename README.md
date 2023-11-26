@@ -58,6 +58,7 @@ You can also test the application client by running the following command:
    ```sh
    make client
    ```
+The client will return the new transaction.
 3. You can use Docker Compose to run the application in the background:
    ```sh
    make up
