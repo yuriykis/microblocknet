@@ -52,6 +52,7 @@ Before you begin, ensure you have the following installed:
 If you simply want to run the application:
    ```sh
    make gate
+   make kafka
    make node
    ```
 You can also test the application client by running the following command:
