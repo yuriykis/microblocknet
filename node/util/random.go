@@ -26,3 +26,25 @@ func RandomBlock() *proto.Block {
 		Header: header,
 	}
 }
+
+// used for testing only
+func RandomTransaction() *proto.Transaction {
+	return &proto.Transaction{
+		Inputs: []*proto.TxInput{},
+		Outputs: []*proto.TxOutput{
+			{
+				Value:   int64(rand.Intn(1000)),
+				Address: RandomHash(),
+			},
+		},
+	}
+}
+
+func RandomUTXO() *proto.UTXO {
+	return &proto.UTXO{
+		TxHash:   RandomHash(),
+		OutIndex: int32(rand.Intn(1000)),
+		Output:   RandomTransaction().Outputs[0],
+		Spent:    false,
+	}
+}
