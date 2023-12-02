@@ -59,6 +59,7 @@ func (c *gatewayClient) SetConnected(connected bool) {
 	c.connected = connected
 }
 
+// RegisterMe sends a RegisterNodeMessage to the kafka, and it will be picked up by the gateway when it is ready
 func (c *gatewayClient) RegisterMe(addr string) error {
 	rMsg := messages.RegisterNodeMessage{
 		Address: addr,
