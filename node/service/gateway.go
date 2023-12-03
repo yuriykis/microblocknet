@@ -70,6 +70,8 @@ func (c *gatewayClient) RegisterMe(addr string) error {
 	return nil
 }
 
+// registerGatewayLoop sends a RegisterNodeMessage to the kafka, and it will be picked up by the gateway when it is ready
+// if the connection is lost, it will try to reconnect
 func (c *gatewayClient) registerGatewayLoop(quitCh chan struct{}, myAddr string) {
 ping:
 	for {
