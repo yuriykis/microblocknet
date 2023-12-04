@@ -16,6 +16,7 @@ const (
 	maxConnectAttempts = 100
 )
 
+// networkManager manages node's network connections
 type networkManager struct {
 	ListenAddress string
 	peers         *peersMap
