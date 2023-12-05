@@ -9,6 +9,8 @@ import (
 	"github.com/yuriykis/microblocknet/common/proto"
 )
 
+// MetricsMiddleware is a middleware that collects metrics about node's
+// it wraps the NodeServer interface
 type MetricsMiddleware struct {
 	handshakeCount      prometheus.Counter
 	handshakeLatency    prometheus.Histogram
