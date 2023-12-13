@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net"
 
@@ -28,7 +27,7 @@ type GRPCNodeServer struct {
 }
 
 func NewGRPCNodeServer(node service.Noder, nodeListenAddr string) *GRPCNodeServer {
-	fmt.Printf("Node %s, starting GRPC transport\n", nodeListenAddr)
+	log.Printf("Node %s, starting GRPC transport\n", nodeListenAddr)
 	var (
 		opt        = []grpc.ServerOption{}
 		grpcServer = grpc.NewServer(opt...)
