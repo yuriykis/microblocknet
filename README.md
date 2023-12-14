@@ -61,10 +61,16 @@ You can also test the application client by running the following command:
    make client
    ```
 The client will return the new transaction.
+
 3. You can use Docker Compose to run the application in the background:
    ```sh
    make up
    ```
+To run in detached mode:
+   ```sh
+   make up-d
+   ```
+
 This will build the necessary Docker images and start the Docker Compose setup. Once started, your blockchain nodes will be running in Docker containers.
 
 ## Architecture
