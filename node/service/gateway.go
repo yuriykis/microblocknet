@@ -13,6 +13,9 @@ const (
 	keepConnectedInterval   = 5 * time.Second
 )
 
+// gatewayClient is a client that is used to communicate with the gateway
+// it is used to register the node with the gateway
+// and to keep the connection alive
 type gatewayClient struct {
 	Endpoint  string
 	connected bool
