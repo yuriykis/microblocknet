@@ -2,10 +2,19 @@ package main
 
 import (
 	"context"
+	"io"
 	"os"
+
+	"github.com/a-h/templ"
 )
 
+func button(text string) templ.Component {
+	return templ.ComponentFunc(func(ctx context.Context, w io.Writer) error {
+		_, err := io.WriteString(w, "<button>"+text+"</button>")
+		return err
+	})
+}
+
 func main() {
-	component := hello("John")
-	component.Render(context.Background(), os.Stdout)
+	button("Click me").Render(context.Background(), os.Stdout)
 }
