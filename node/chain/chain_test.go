@@ -55,7 +55,7 @@ func TestChainAddBlockWithTxs(t *testing.T) {
 		assert.NotNil(t, prevBlockTx)
 
 		block := util.RandomBlock()
-		myUTXOs, err := chain.Store().UTXOStore(ctx).GetByAddress(myPrivKey.PublicKey().Address().Bytes())
+		myUTXOs, err := chain.Store().UTXOStore(ctx).GetByAddress(ctx, myPrivKey.PublicKey().Address().Bytes())
 		assert.NotNil(t, myUTXOs)
 		assert.Nil(t, err)
 

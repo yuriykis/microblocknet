@@ -2,6 +2,7 @@ package store
 
 import (
 	"bytes"
+	"context"
 	"sync"
 
 	"github.com/yuriykis/microblocknet/common/proto"
@@ -24,7 +25,7 @@ func NewMemoryUTXOStore() *MemoryUTXOStore {
 	}
 }
 
-func (m *MemoryUTXOStore) Put(utxo *proto.UTXO) error {
+func (m *MemoryUTXOStore) Put(ctx context.Context, utxo *proto.UTXO) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
@@ -35,7 +36,7 @@ func (m *MemoryUTXOStore) Put(utxo *proto.UTXO) error {
 	return nil
 }
 
-func (m *MemoryUTXOStore) Get(key string) (*proto.UTXO, error) {
+func (m *MemoryUTXOStore) Get(ctx context.Context, key string) (*proto.UTXO, error) {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 
@@ -46,7 +47,7 @@ func (m *MemoryUTXOStore) Get(key string) (*proto.UTXO, error) {
 	return utxo, nil
 }
 
-func (m *MemoryUTXOStore) List() []*proto.UTXO {
+func (m *MemoryUTXOStore) List(ctx context.Context) []*proto.UTXO {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 
@@ -59,7 +60,7 @@ func (m *MemoryUTXOStore) List() []*proto.UTXO {
 	return utxos
 }
 
-func (m *MemoryUTXOStore) GetByAddress(address []byte) ([]*proto.UTXO, error) {
+func (m *MemoryUTXOStore) GetByAddress(ctx context.Context, address []byte) ([]*proto.UTXO, error) {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 
@@ -88,22 +89,22 @@ func NewMongoUTXOStore(client *mongo.Client) *MongoUTXOStore {
 	}
 }
 
-func (m *MongoUTXOStore) Put(utxo *proto.UTXO) error {
+func (m *MongoUTXOStore) Put(ctx context.Context, utxo *proto.UTXO) error {
 	// TODO: implement
 	return nil
 }
 
-func (m *MongoUTXOStore) Get(key string) (*proto.UTXO, error) {
+func (m *MongoUTXOStore) Get(ctx context.Context, key string) (*proto.UTXO, error) {
 	// TODO: implement
 	return nil, nil
 }
 
-func (m *MongoUTXOStore) List() []*proto.UTXO {
+func (m *MongoUTXOStore) List(ctx context.Context) []*proto.UTXO {
 	// TODO: implement
 	return nil
 }
 
-func (m *MongoUTXOStore) GetByAddress(address []byte) ([]*proto.UTXO, error) {
+func (m *MongoUTXOStore) GetByAddress(ctx context.Context, address []byte) ([]*proto.UTXO, error) {
 	// TODO: implement
 	return nil, nil
 }

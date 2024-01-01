@@ -72,20 +72,20 @@ func (c *Chain) AddBlock(block *proto.Block) error {
 
 func (c *Chain) addBlock(block *proto.Block) error {
 	ctx := context.Background()
-	if err := c.store.BlockStore(ctx).Put(block); err != nil {
+	if err := c.store.BlockStore(ctx).Put(ctx, block); err != nil {
 		return err
 	}
 	c.headers.Add(block.Header)
 
 	for _, tx := range block.Transactions {
-		if err := c.store.TxStore(ctx).Put(tx); err != nil {
+		if err := c.store.TxStore(ctx).Put(ctx, tx); err != nil {
 			return err
 		}
 		if err := c.makeUTXOs(tx); err != nil {
 			return err
 		}
 	}
-	return c.store.BlockStore(ctx).Put(block)
+	return c.store.BlockStore(ctx).Put(ctx, block)
 }
 
 func (c *Chain) makeUTXOs(tx *proto.Transaction) error {
@@ -98,18 +98,18 @@ func (c *Chain) makeUTXOs(tx *proto.Transaction) error {
 			Output:   output,
 			Spent:    false,
 		}
-		if err := c.store.UTXOStore(ctx).Put(utxo); err != nil {
+		if err := c.store.UTXOStore(ctx).Put(ctx, utxo); err != nil {
 			return err
 		}
 	}
 	for _, input := range tx.Inputs {
 		utxoKey := secure.MakeUTXOKey(input.PrevTxHash, int(input.OutIndex))
-		utxo, err := c.store.UTXOStore(ctx).Get(utxoKey)
+		utxo, err := c.store.UTXOStore(ctx).Get(ctx, utxoKey)
 		if err != nil {
 			return err
 		}
 		utxo.Spent = true
-		if err := c.store.UTXOStore(ctx).Put(utxo); err != nil {
+		if err := c.store.UTXOStore(ctx).Put(ctx, utxo); err != nil {
 			return err
 		}
 	}
@@ -156,7 +156,7 @@ func (c *Chain) ValidateTransaction(tx *proto.Transaction) error {
 	inputsSum := int64(0)
 	for _, input := range tx.Inputs {
 		utxoKey := secure.MakeUTXOKey(input.PrevTxHash, int(input.OutIndex))
-		utxo, err := c.store.UTXOStore(ctx).Get(utxoKey)
+		utxo, err := c.store.UTXOStore(ctx).Get(ctx, utxoKey)
 		if err != nil {
 			return err
 		}
@@ -188,7 +188,7 @@ func (c *Chain) GetBlockByHeight(height int) (*proto.Block, error) {
 		return nil, err
 	}
 	hash := secure.HashHeader(header)
-	block, err := c.store.BlockStore(ctx).Get(hash)
+	block, err := c.store.BlockStore(ctx).Get(ctx, hash)
 	if err != nil {
 		return nil, err
 	}
@@ -197,7 +197,7 @@ func (c *Chain) GetBlockByHeight(height int) (*proto.Block, error) {
 
 func (c *Chain) GetBlockByHash(hash string) (*proto.Block, error) {
 	ctx := context.Background()
-	return c.store.BlockStore(ctx).Get(hash)
+	return c.store.BlockStore(ctx).Get(ctx, hash)
 }
 
 func genesisBlock() *proto.Block {

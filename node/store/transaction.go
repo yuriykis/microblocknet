@@ -1,9 +1,11 @@
 package store
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
+	"github.com/sirupsen/logrus"
 	"github.com/yuriykis/microblocknet/common/proto"
 	"github.com/yuriykis/microblocknet/node/secure"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -25,7 +27,7 @@ func NewMemoryTxStore() *MemoryTxStore {
 	}
 }
 
-func (m *MemoryTxStore) Put(tx *proto.Transaction) error {
+func (m *MemoryTxStore) Put(ctx context.Context, tx *proto.Transaction) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
@@ -34,7 +36,7 @@ func (m *MemoryTxStore) Put(tx *proto.Transaction) error {
 	return nil
 }
 
-func (m *MemoryTxStore) Get(txHash string) (*proto.Transaction, error) {
+func (m *MemoryTxStore) Get(ctx context.Context, txHash string) (*proto.Transaction, error) {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 	tx, ok := m.txs[txHash]
@@ -44,7 +46,7 @@ func (m *MemoryTxStore) Get(txHash string) (*proto.Transaction, error) {
 	return tx, nil
 }
 
-func (m *MemoryTxStore) List() []*proto.Transaction {
+func (m *MemoryTxStore) List(ctx context.Context) []*proto.Transaction {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 	txs := make([]*proto.Transaction, 0)
@@ -69,17 +71,38 @@ func NewMongoTxStore(client *mongo.Client) *MongoTxStore {
 	}
 }
 
-func (m *MongoTxStore) Put(tx *proto.Transaction) error {
-	// TODO: implement
+func (m *MongoTxStore) Put(ctx context.Context, tx *proto.Transaction) error {
+	res, err := m.coll.InsertOne(ctx, tx)
+	if err != nil {
+		return err
+	}
+	logrus.Debugf("inserted transaction %s", res.InsertedID)
 	return nil
 }
 
-func (m *MongoTxStore) Get(txID string) (*proto.Transaction, error) {
+func (m *MongoTxStore) Get(ctx context.Context, txHash string) (*proto.Transaction, error) {
+	var tx proto.Transaction
 	// TODO: implement
-	return nil, nil
+	// if err := m.coll.FindOne(ctx, proto.Transaction{Hash: txHash}).Decode(&tx); err != nil {
+	// 	return nil, err
+	// }
+	return &tx, nil
 }
 
-func (m *MongoTxStore) List() []*proto.Transaction {
-	// TODO: implement
-	return nil
+func (m *MongoTxStore) List(ctx context.Context) []*proto.Transaction {
+	var txs []*proto.Transaction
+
+	cur, err := m.coll.Find(ctx, nil)
+	if err != nil {
+		return nil
+	}
+	defer cur.Close(ctx)
+	for cur.Next(ctx) {
+		var tx proto.Transaction
+		if err := cur.Decode(&tx); err != nil {
+			return nil
+		}
+		txs = append(txs, &tx)
+	}
+	return txs
 }

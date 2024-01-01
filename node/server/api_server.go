@@ -148,7 +148,7 @@ func handleGetUTXOsByAddress(node service.Api) HTTPFunc {
 			},
 		})
 
-		utxos, err := node.Chain().Store().UTXOStore(ctx).GetByAddress(req.Address)
+		utxos, err := node.Chain().Store().UTXOStore(ctx).GetByAddress(ctx, req.Address)
 		if err != nil {
 			fmt.Println(err)
 			return APIError{

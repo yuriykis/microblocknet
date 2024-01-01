@@ -105,20 +105,20 @@ func (c *ChainMongoStore) BlockStore(ctx context.Context) BlockStorer {
 }
 
 type TxStorer interface {
-	Put(tx *proto.Transaction) error
-	Get(txHash string) (*proto.Transaction, error)
-	List() []*proto.Transaction
+	Put(ctx context.Context, tx *proto.Transaction) error
+	Get(ctx context.Context, txHash string) (*proto.Transaction, error)
+	List(ctx context.Context) []*proto.Transaction
 }
 
 type BlockStorer interface {
-	Put(block *proto.Block) error
-	Get(blockHash string) (*proto.Block, error)
-	List() []*proto.Block
+	Put(ctx context.Context, block *proto.Block) error
+	Get(ctx context.Context, blockHash string) (*proto.Block, error)
+	List(ctx context.Context) []*proto.Block
 }
 
 type UTXOStorer interface {
-	Put(utxo *proto.UTXO) error
-	Get(key string) (*proto.UTXO, error)
-	List() []*proto.UTXO
-	GetByAddress(address []byte) ([]*proto.UTXO, error)
+	Put(ctx context.Context, utxo *proto.UTXO) error
+	Get(ctx context.Context, key string) (*proto.UTXO, error)
+	List(ctx context.Context) []*proto.UTXO
+	GetByAddress(ctx context.Context, address []byte) ([]*proto.UTXO, error)
 }
