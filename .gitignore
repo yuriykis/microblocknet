@@ -2,3 +2,4 @@
 bin/
 __debug*
 .DS_Store
+mongo/

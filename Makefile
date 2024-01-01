@@ -46,6 +46,9 @@ consul:
 kafka:
 	@docker compose up -d kafka
 	
+mongo:
+	@docker compose up -d mongo
+
 proto:
 	@protoc --go_out=. --go_opt=paths=source_relative \
 	--go-grpc_out=. --go-grpc_opt=paths=source_relative \
@@ -58,4 +61,4 @@ build: proto
 clear:
 	@docker images -f "dangling=true" -q | xargs -r docker rmi
 
-.PHONY: build run test proto build-node gateway up down up-d	up-b clear
+.PHONY: build run test proto build-node gateway up down up-d up-b clear consul kafka mongo
