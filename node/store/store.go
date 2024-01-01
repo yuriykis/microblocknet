@@ -1,6 +1,8 @@
 package store
 
 import (
+	"context"
+
 	"github.com/sirupsen/logrus"
 	"github.com/yuriykis/microblocknet/common/proto"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -14,9 +16,9 @@ const (
 )
 
 type Storer interface {
-	UTXOStore() UTXOStorer
-	TxStore() TxStorer
-	BlockStore() BlockStorer
+	UTXOStore(context.Context) UTXOStorer
+	TxStore(context.Context) TxStorer
+	BlockStore(context.Context) BlockStorer
 }
 
 func NewChainStore(sType string) (Storer, error) {
@@ -46,21 +48,21 @@ type ChainMemoryStore struct {
 	utxoStore  UTXOStorer
 }
 
-func (c *ChainMemoryStore) UTXOStore() UTXOStorer {
+func (c *ChainMemoryStore) UTXOStore(ctx context.Context) UTXOStorer {
 	if c.utxoStore == nil {
 		c.utxoStore = NewMemoryUTXOStore()
 	}
 	return c.utxoStore
 }
 
-func (c *ChainMemoryStore) TxStore() TxStorer {
+func (c *ChainMemoryStore) TxStore(ctx context.Context) TxStorer {
 	if c.txStore == nil {
 		c.txStore = NewMemoryTxStore()
 	}
 	return c.txStore
 }
 
-func (c *ChainMemoryStore) BlockStore() BlockStorer {
+func (c *ChainMemoryStore) BlockStore(ctx context.Context) BlockStorer {
 	if c.blockStore == nil {
 		c.blockStore = NewMemoryBlockStore()
 	}
@@ -81,21 +83,21 @@ func NewChainMongoStore(client *mongo.Client) Storer {
 	}
 }
 
-func (c *ChainMongoStore) UTXOStore() UTXOStorer {
+func (c *ChainMongoStore) UTXOStore(ctx context.Context) UTXOStorer {
 	if c.utxoStore == nil {
 		c.utxoStore = NewMongoUTXOStore(c.client)
 	}
 	return c.utxoStore
 }
 
-func (c *ChainMongoStore) TxStore() TxStorer {
+func (c *ChainMongoStore) TxStore(ctx context.Context) TxStorer {
 	if c.txStore == nil {
 		c.txStore = NewMongoTxStore(c.client)
 	}
 	return c.txStore
 }
 
-func (c *ChainMongoStore) BlockStore() BlockStorer {
+func (c *ChainMongoStore) BlockStore(ctx context.Context) BlockStorer {
 	if c.blockStore == nil {
 		c.blockStore = NewMongoBlockStore(c.client)
 	}

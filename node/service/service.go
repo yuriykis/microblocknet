@@ -46,6 +46,7 @@ type ServerConfig struct {
 	ApiListenAddr        string
 	GatewayAddress       string
 	ConsulServiceAddress string
+	StoreType            string
 }
 
 type Node struct {
@@ -80,7 +81,7 @@ func (n *Node) shutdown() {
 
 func New(conf ServerConfig) *Node {
 	logger := makeLogger()
-	st, err := store.NewChainStore("mongo")
+	st, err := store.NewChainStore(conf.StoreType)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -312,6 +313,8 @@ func (n *Node) minerLoop() {
 }
 
 func (n *Node) showNodeInfo(quitCh chan struct{}, netLogging bool, blockchainLogging bool) {
+	ctx := context.Background() // TODO: check if this is correct
+
 	if netLogging || blockchainLogging {
 		n.logger.Infof("Node: %s, starting showPeers\n", n)
 	}
@@ -330,9 +333,9 @@ func (n *Node) showNodeInfo(quitCh chan struct{}, netLogging bool, blockchainLog
 			}
 			if blockchainLogging {
 				n.logger.Infof("Node %s, blockchain height: %d", n, n.Chain().Height())
-				n.logger.Infof("Node %s, blocks in blockchain: %v", n, len(n.Chain().Store().BlockStore().List()))
-				n.logger.Infof("Node %s, transactions in blockchain: %v", n, len(n.Chain().Store().TxStore().List()))
-				n.logger.Infof("Node %s, utxos in blockchain: %v", n, len(n.Chain().Store().UTXOStore().List()))
+				n.logger.Infof("Node %s, blocks in blockchain: %v", n, len(n.Chain().Store().BlockStore(ctx).List()))
+				n.logger.Infof("Node %s, transactions in blockchain: %v", n, len(n.Chain().Store().TxStore(ctx).List()))
+				n.logger.Infof("Node %s, utxos in blockchain: %v", n, len(n.Chain().Store().UTXOStore(ctx).List()))
 			}
 			time.Sleep(3 * time.Second)
 		}

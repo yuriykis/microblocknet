@@ -1,6 +1,7 @@
 package chain
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -38,6 +39,7 @@ func TestChainAddBlock(t *testing.T) {
 }
 
 func TestChainAddBlockWithTxs(t *testing.T) {
+	ctx := context.Background()
 	s := store.NewChainMemoryStore()
 	chain := New(s)
 	assert.Equal(t, 0, chain.Height())
@@ -53,7 +55,7 @@ func TestChainAddBlockWithTxs(t *testing.T) {
 		assert.NotNil(t, prevBlockTx)
 
 		block := util.RandomBlock()
-		myUTXOs, err := chain.Store().UTXOStore().GetByAddress(myPrivKey.PublicKey().Address().Bytes())
+		myUTXOs, err := chain.Store().UTXOStore(ctx).GetByAddress(myPrivKey.PublicKey().Address().Bytes())
 		assert.NotNil(t, myUTXOs)
 		assert.Nil(t, err)
 

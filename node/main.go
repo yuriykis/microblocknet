@@ -15,6 +15,7 @@ const (
 	defaultAPIAddr    = ":8000"
 	defaultGateway    = "http://localhost:6000"
 	defaultConsulAddr = "127.0.0.1:10000"
+	defaultStoreType  = "memory"
 )
 
 const godSeed = "41b84a2eff9a47393471748fbbdff9d20c14badab3d2de59fd8b5e98edd34d1c577c4c3515c6c19e5b9fdfba39528b1be755aae4d6a75fc851d3a17fbf51f1bc"
@@ -33,6 +34,7 @@ func main() {
 		consulServiceAddr = os.Getenv("CONSUL_SERVICE_ADDR")
 		bootstrapNodesVar = os.Getenv("BOOTSTRAP_NODES")
 		isMinerStr        = os.Getenv("IS_MINER")
+		storeType         = os.Getenv("STORE_TYPE")
 		bootstrapNodes    []string
 	)
 	if listenAddr == "" {
@@ -50,6 +52,10 @@ func main() {
 		consulServiceAddr = defaultConsulAddr
 	}
 
+	if storeType == "" {
+		storeType = defaultStoreType
+	}
+
 	isMiner, err := strconv.ParseBool(isMinerStr)
 	if err != nil {
 		log.Fatal(err)
@@ -65,6 +71,7 @@ func main() {
 		gatewayAddress,
 		consulServiceAddr,
 		bootstrapNodes,
+		storeType,
 		isMiner,
 	)
 	err = nb.Build()
@@ -85,6 +92,7 @@ func debug() {
 			"http://localhost:6000",
 			"localhost:10000",
 			[]string{},
+			"mongo",
 			true,
 		)
 		nb2 = NewNodeBuilder(
@@ -93,6 +101,7 @@ func debug() {
 			"http://localhost:6000",
 			"localhost:10001",
 			[]string{"localhost:4000"},
+			"mongo",
 			false,
 		)
 		nb3 = NewNodeBuilder(
@@ -101,6 +110,7 @@ func debug() {
 			"http://localhost:6000",
 			"localhost:10002",
 			[]string{"localhost:4000"},
+			"mongo",
 			false,
 		)
 		nb4 = NewNodeBuilder(
@@ -109,6 +119,7 @@ func debug() {
 			"http://localhost:6000",
 			"localhost:10003",
 			[]string{"localhost:4000"},
+			"mongo",
 			false,
 		)
 	)

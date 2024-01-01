@@ -21,6 +21,7 @@ func NewNodeBuilder(
 	gatewayAddr string,
 	consulServiceAddr string,
 	bootstrapNodes []string,
+	storeType string,
 	isMiner bool,
 ) *NodeBuilder {
 	return &NodeBuilder{
@@ -29,6 +30,7 @@ func NewNodeBuilder(
 			ApiListenAddr:        apiListenAddr,
 			GatewayAddress:       gatewayAddr,
 			ConsulServiceAddress: consulServiceAddr,
+			StoreType:            storeType,
 		},
 		bootOpts: boot.BootOpts{
 			BootstrapNodes: bootstrapNodes,
