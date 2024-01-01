@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"sync"
 
@@ -73,8 +74,9 @@ func NewMongoBlockStore(client *mongo.Client) *MongoBlockStore {
 }
 
 func (m *MongoBlockStore) Put(ctx context.Context, block *proto.Block) error {
+	hash := secure.HashBlock(block)
 	res, err := m.coll.InsertOne(ctx, bson.M{
-		"hash":  secure.HashBlock(block),
+		"hash":  hex.EncodeToString([]byte(hash)),
 		"block": block,
 	})
 	if err != nil {

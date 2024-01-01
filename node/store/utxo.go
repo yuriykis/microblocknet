@@ -3,6 +3,7 @@ package store
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"sync"
 
 	"github.com/sirupsen/logrus"
@@ -92,8 +93,9 @@ func NewMongoUTXOStore(client *mongo.Client) *MongoUTXOStore {
 }
 
 func (m *MongoUTXOStore) Put(ctx context.Context, utxo *proto.UTXO) error {
+	key := secure.MakeUTXOKey(utxo.TxHash, int(utxo.OutIndex))
 	res, err := m.coll.InsertOne(ctx, bson.M{
-		"key":  secure.MakeUTXOKey(utxo.TxHash, int(utxo.OutIndex)),
+		"key":  hex.EncodeToString([]byte(key)),
 		"utxo": utxo,
 	})
 	if err != nil {
@@ -109,7 +111,7 @@ func (m *MongoUTXOStore) Get(ctx context.Context, key string) (*proto.UTXO, erro
 		UTXO proto.UTXO `bson:"utxo"`
 	}
 	if err := m.coll.FindOne(ctx, bson.M{
-		"key": key,
+		"key": hex.EncodeToString([]byte(key)),
 	}).Decode(&utxoDoc); err != nil {
 		return nil, err
 	}

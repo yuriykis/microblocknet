@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"sync"
 
@@ -75,7 +76,7 @@ func NewMongoTxStore(client *mongo.Client) *MongoTxStore {
 func (m *MongoTxStore) Put(ctx context.Context, tx *proto.Transaction) error {
 	txHash := secure.HashTransaction(tx)
 	res, err := m.coll.InsertOne(ctx, bson.M{
-		"txHash": txHash,
+		"txHash": hex.EncodeToString([]byte(txHash)),
 		"tx":     tx,
 	})
 	if err != nil {
@@ -91,7 +92,7 @@ func (m *MongoTxStore) Get(ctx context.Context, txHash string) (*proto.Transacti
 		Tx     proto.Transaction `bson:"tx"`
 	}
 	if err := m.coll.FindOne(ctx, bson.M{
-		"txHash": txHash,
+		"txHash": hex.EncodeToString([]byte(txHash)),
 	}).Decode(&txDoc); err != nil {
 		return nil, err
 	}
