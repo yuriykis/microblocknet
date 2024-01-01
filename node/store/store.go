@@ -1,11 +1,16 @@
 package store
 
 import (
+	"github.com/sirupsen/logrus"
 	"github.com/yuriykis/microblocknet/common/proto"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 const (
 	storeTypeMemory = "memory"
+	storeTypeMongo  = "mongo"
+
+	mongoDBName = "microblocknet"
 )
 
 type Storer interface {
@@ -14,12 +19,20 @@ type Storer interface {
 	BlockStore() BlockStorer
 }
 
-func NewChainStore(sType string) Storer {
+func NewChainStore(sType string) (Storer, error) {
 	switch sType {
 	case storeTypeMemory:
-		return NewChainMemoryStore()
+		return NewChainMemoryStore(), nil
+	case storeTypeMongo:
+		client, err := mongo.Connect(nil, nil)
+		if err != nil {
+			// TODO: adjust logger
+			logrus.WithError(err).Error("failed to connect to mongo")
+			return nil, err
+		}
+		return NewChainMongoStore(client), nil
 	default:
-		return NewChainMemoryStore()
+		return NewChainMemoryStore(), nil
 	}
 }
 
@@ -50,6 +63,41 @@ func (c *ChainMemoryStore) TxStore() TxStorer {
 func (c *ChainMemoryStore) BlockStore() BlockStorer {
 	if c.blockStore == nil {
 		c.blockStore = NewMemoryBlockStore()
+	}
+	return c.blockStore
+}
+
+type ChainMongoStore struct {
+	txStore    TxStorer
+	blockStore BlockStorer
+	utxoStore  UTXOStorer
+
+	client *mongo.Client
+}
+
+func NewChainMongoStore(client *mongo.Client) Storer {
+	return &ChainMongoStore{
+		client: client,
+	}
+}
+
+func (c *ChainMongoStore) UTXOStore() UTXOStorer {
+	if c.utxoStore == nil {
+		c.utxoStore = NewMongoUTXOStore(c.client)
+	}
+	return c.utxoStore
+}
+
+func (c *ChainMongoStore) TxStore() TxStorer {
+	if c.txStore == nil {
+		c.txStore = NewMongoTxStore(c.client)
+	}
+	return c.txStore
+}
+
+func (c *ChainMongoStore) BlockStore() BlockStorer {
+	if c.blockStore == nil {
+		c.blockStore = NewMongoBlockStore(c.client)
 	}
 	return c.blockStore
 }

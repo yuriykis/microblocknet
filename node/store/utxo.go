@@ -6,6 +6,11 @@ import (
 
 	"github.com/yuriykis/microblocknet/common/proto"
 	"github.com/yuriykis/microblocknet/node/secure"
+	"go.mongodb.org/mongo-driver/mongo"
+)
+
+const (
+	utxoColl = "utxo"
 )
 
 type MemoryUTXOStore struct {
@@ -67,4 +72,38 @@ func (m *MemoryUTXOStore) GetByAddress(address []byte) ([]*proto.UTXO, error) {
 	}
 
 	return utxos, nil
+}
+
+// -----------------------------------------------------------------------------
+
+type MongoUTXOStore struct {
+	client *mongo.Client
+	coll   *mongo.Collection
+}
+
+func NewMongoUTXOStore(client *mongo.Client) *MongoUTXOStore {
+	return &MongoUTXOStore{
+		client: client,
+		coll:   client.Database(mongoDBName).Collection(utxoColl),
+	}
+}
+
+func (m *MongoUTXOStore) Put(utxo *proto.UTXO) error {
+	// TODO: implement
+	return nil
+}
+
+func (m *MongoUTXOStore) Get(key string) (*proto.UTXO, error) {
+	// TODO: implement
+	return nil, nil
+}
+
+func (m *MongoUTXOStore) List() []*proto.UTXO {
+	// TODO: implement
+	return nil
+}
+
+func (m *MongoUTXOStore) GetByAddress(address []byte) ([]*proto.UTXO, error) {
+	// TODO: implement
+	return nil, nil
 }

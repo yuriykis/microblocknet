@@ -80,6 +80,10 @@ func (n *Node) shutdown() {
 
 func New(conf ServerConfig) *Node {
 	logger := makeLogger()
+	st, err := store.NewChainStore("mongo")
+	if err != nil {
+		log.Fatal(err)
+	}
 	return &Node{
 		ServerConfig: conf,
 
@@ -87,7 +91,7 @@ func New(conf ServerConfig) *Node {
 
 		nm: NewNetworkManager(conf.NodeListenAddress, logger),
 
-		chain:   chain.New(store.NewChainStore("memory")),
+		chain:   chain.New(st),
 		mempool: NewMempool(),
 
 		gate:          NewGatewayClient(conf.GatewayAddress, logger),

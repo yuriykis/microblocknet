@@ -7,6 +7,7 @@ require (
 	github.com/confluentinc/confluent-kafka-go/v2 v2.3.0
 	github.com/hashicorp/consul/api v1.26.1
 	github.com/prometheus/client_golang v1.17.0
+	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.8.4
 	github.com/yuriykis/microblocknet/common v0.0.0-20231111140205-8159a58c80c1
 )
