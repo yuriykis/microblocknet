@@ -5,8 +5,10 @@ import (
 	"context"
 	"sync"
 
+	"github.com/sirupsen/logrus"
 	"github.com/yuriykis/microblocknet/common/proto"
 	"github.com/yuriykis/microblocknet/node/secure"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -90,21 +92,94 @@ func NewMongoUTXOStore(client *mongo.Client) *MongoUTXOStore {
 }
 
 func (m *MongoUTXOStore) Put(ctx context.Context, utxo *proto.UTXO) error {
-	// TODO: implement
+	res, err := m.coll.InsertOne(ctx, bson.M{
+		"key":  secure.MakeUTXOKey(utxo.TxHash, int(utxo.OutIndex)),
+		"utxo": utxo,
+	})
+	if err != nil {
+		return err
+	}
+	logrus.Infof("inserted utxo %s", res.InsertedID)
 	return nil
 }
 
 func (m *MongoUTXOStore) Get(ctx context.Context, key string) (*proto.UTXO, error) {
-	// TODO: implement
-	return nil, nil
+	var utxoDoc struct {
+		Key  string     `bson:"key"`
+		UTXO proto.UTXO `bson:"utxo"`
+	}
+	if err := m.coll.FindOne(ctx, bson.M{
+		"key": key,
+	}).Decode(&utxoDoc); err != nil {
+		return nil, err
+	}
+	return &utxoDoc.UTXO, nil
 }
 
 func (m *MongoUTXOStore) List(ctx context.Context) []*proto.UTXO {
-	// TODO: implement
-	return nil
+	utxosDocs := make(
+		[]struct {
+			Key  string     `bson:"key"`
+			UTXO proto.UTXO `bson:"utxo"`
+		}, 0)
+	cur, err := m.coll.Find(ctx, nil)
+	if err != nil {
+		return nil
+	}
+	defer cur.Close(ctx)
+	for cur.Next(ctx) {
+		var utxoDoc struct {
+			Key  string     `bson:"key"`
+			UTXO proto.UTXO `bson:"utxo"`
+		}
+		if err := cur.Decode(&utxoDoc); err != nil {
+			logrus.Errorf("error decoding utxo: %s", err)
+			continue
+		}
+		utxosDocs = append(utxosDocs, utxoDoc)
+	}
+	if err := cur.Err(); err != nil {
+		logrus.Errorf("error iterating utxos: %s", err)
+		return nil
+	}
+	utxos := make([]*proto.UTXO, 0)
+	for _, utxoDoc := range utxosDocs {
+		utxos = append(utxos, &utxoDoc.UTXO)
+	}
+	return utxos
 }
 
 func (m *MongoUTXOStore) GetByAddress(ctx context.Context, address []byte) ([]*proto.UTXO, error) {
-	// TODO: implement
-	return nil, nil
+	utxosDocs := make(
+		[]struct {
+			Key  string     `bson:"key"`
+			UTXO proto.UTXO `bson:"utxo"`
+		}, 0)
+	cur, err := m.coll.Find(ctx, bson.M{
+		"utxo.output.address": address,
+	})
+	if err != nil {
+		return nil, err
+	}
+	defer cur.Close(ctx)
+	for cur.Next(ctx) {
+		var utxoDoc struct {
+			Key  string     `bson:"key"`
+			UTXO proto.UTXO `bson:"utxo"`
+		}
+		if err := cur.Decode(&utxoDoc); err != nil {
+			logrus.Errorf("error decoding utxo: %s", err)
+			continue
+		}
+		utxosDocs = append(utxosDocs, utxoDoc)
+	}
+	if err := cur.Err(); err != nil {
+		logrus.Errorf("error iterating utxos: %s", err)
+		return nil, err
+	}
+	utxos := make([]*proto.UTXO, 0)
+	for _, utxoDoc := range utxosDocs {
+		utxos = append(utxos, &utxoDoc.UTXO)
+	}
+	return utxos, nil
 }

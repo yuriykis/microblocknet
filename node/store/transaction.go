@@ -8,6 +8,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/yuriykis/microblocknet/common/proto"
 	"github.com/yuriykis/microblocknet/node/secure"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -72,7 +73,11 @@ func NewMongoTxStore(client *mongo.Client) *MongoTxStore {
 }
 
 func (m *MongoTxStore) Put(ctx context.Context, tx *proto.Transaction) error {
-	res, err := m.coll.InsertOne(ctx, tx)
+	txHash := secure.HashTransaction(tx)
+	res, err := m.coll.InsertOne(ctx, bson.M{
+		"txHash": txHash,
+		"tx":     tx,
+	})
 	if err != nil {
 		return err
 	}
@@ -81,16 +86,24 @@ func (m *MongoTxStore) Put(ctx context.Context, tx *proto.Transaction) error {
 }
 
 func (m *MongoTxStore) Get(ctx context.Context, txHash string) (*proto.Transaction, error) {
-	var tx proto.Transaction
-	// TODO: implement
-	// if err := m.coll.FindOne(ctx, proto.Transaction{Hash: txHash}).Decode(&tx); err != nil {
-	// 	return nil, err
-	// }
-	return &tx, nil
+	var txDoc struct {
+		TxHash string            `bson:"txHash"`
+		Tx     proto.Transaction `bson:"tx"`
+	}
+	if err := m.coll.FindOne(ctx, bson.M{
+		"txHash": txHash,
+	}).Decode(&txDoc); err != nil {
+		return nil, err
+	}
+	return &txDoc.Tx, nil
 }
 
 func (m *MongoTxStore) List(ctx context.Context) []*proto.Transaction {
-	var txs []*proto.Transaction
+	txsDocs := make(
+		[]struct {
+			TxHash string            `bson:"txHash"`
+			Tx     proto.Transaction `bson:"tx"`
+		}, 0)
 
 	cur, err := m.coll.Find(ctx, nil)
 	if err != nil {
@@ -98,11 +111,18 @@ func (m *MongoTxStore) List(ctx context.Context) []*proto.Transaction {
 	}
 	defer cur.Close(ctx)
 	for cur.Next(ctx) {
-		var tx proto.Transaction
-		if err := cur.Decode(&tx); err != nil {
+		var txDoc struct {
+			TxHash string            `bson:"txHash"`
+			Tx     proto.Transaction `bson:"tx"`
+		}
+		if err := cur.Decode(&txDoc); err != nil {
 			return nil
 		}
-		txs = append(txs, &tx)
+		txsDocs = append(txsDocs, txDoc)
+	}
+	txs := make([]*proto.Transaction, len(txsDocs))
+	for i, txDoc := range txsDocs {
+		txs[i] = &txDoc.Tx
 	}
 	return txs
 }

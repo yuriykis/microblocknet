@@ -8,6 +8,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/yuriykis/microblocknet/common/proto"
 	"github.com/yuriykis/microblocknet/node/secure"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
@@ -72,7 +73,10 @@ func NewMongoBlockStore(client *mongo.Client) *MongoBlockStore {
 }
 
 func (m *MongoBlockStore) Put(ctx context.Context, block *proto.Block) error {
-	res, err := m.coll.InsertOne(ctx, block)
+	res, err := m.coll.InsertOne(ctx, bson.M{
+		"hash":  secure.HashBlock(block),
+		"block": block,
+	})
 	if err != nil {
 		return err
 	}
@@ -81,26 +85,39 @@ func (m *MongoBlockStore) Put(ctx context.Context, block *proto.Block) error {
 }
 
 func (m *MongoBlockStore) Get(ctx context.Context, blockID string) (*proto.Block, error) {
-	var block proto.Block
-	if err := m.coll.FindOne(ctx, blockID).Decode(&block); err != nil {
+	var blockDoc struct {
+		Hash  string       `bson:"hash"`
+		Block *proto.Block `bson:"block"`
+	}
+	if err := m.coll.FindOne(ctx, blockID).Decode(&blockDoc); err != nil {
 		return nil, err
 	}
-	return &block, nil
+	return blockDoc.Block, nil
 }
 
 func (m *MongoBlockStore) List(ctx context.Context) []*proto.Block {
-	var blocks []*proto.Block
+	blocksDocs := make([]struct {
+		Hash  string       `bson:"hash"`
+		Block *proto.Block `bson:"block"`
+	}, 0)
 	cur, err := m.coll.Find(ctx, nil)
 	if err != nil {
 		return nil
 	}
 	defer cur.Close(ctx)
 	for cur.Next(ctx) {
-		var block proto.Block
-		if err := cur.Decode(&block); err != nil {
+		var blockDoc struct {
+			Hash  string       `bson:"hash"`
+			Block *proto.Block `bson:"block"`
+		}
+		if err := cur.Decode(&blockDoc); err != nil {
 			return nil
 		}
-		blocks = append(blocks, &block)
+		blocksDocs = append(blocksDocs, blockDoc)
+	}
+	blocks := make([]*proto.Block, len(blocksDocs))
+	for i, blockDoc := range blocksDocs {
+		blocks[i] = blockDoc.Block
 	}
 	return blocks
 }
