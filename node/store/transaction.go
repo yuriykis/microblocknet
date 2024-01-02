@@ -59,8 +59,8 @@ func (m *MemoryTxStore) List(ctx context.Context) []*proto.Transaction {
 }
 
 // -----------------------------------------------------------------------------
-// MongoTxStore
 
+// MongoTxStore
 type MongoTxStore struct {
 	client *mongo.Client
 	coll   *mongo.Collection
@@ -73,6 +73,7 @@ func NewMongoTxStore(client *mongo.Client) *MongoTxStore {
 	}
 }
 
+// Put inserts transaction into the store, implements TxStorer interface
 func (m *MongoTxStore) Put(ctx context.Context, tx *proto.Transaction) error {
 	txHash := secure.HashTransaction(tx)
 	res, err := m.coll.InsertOne(ctx, bson.M{
@@ -86,6 +87,7 @@ func (m *MongoTxStore) Put(ctx context.Context, tx *proto.Transaction) error {
 	return nil
 }
 
+// Get retrieves transaction from the store, implements TxStorer interface
 func (m *MongoTxStore) Get(ctx context.Context, txHash string) (*proto.Transaction, error) {
 	var txDoc struct {
 		TxHash string            `bson:"txHash"`
@@ -99,6 +101,7 @@ func (m *MongoTxStore) Get(ctx context.Context, txHash string) (*proto.Transacti
 	return &txDoc.Tx, nil
 }
 
+// List retrieves all transactions from the store, implements TxStorer interface
 func (m *MongoTxStore) List(ctx context.Context) []*proto.Transaction {
 	txsDocs := make(
 		[]struct {

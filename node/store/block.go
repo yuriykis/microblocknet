@@ -73,6 +73,7 @@ func NewMongoBlockStore(client *mongo.Client) *MongoBlockStore {
 	}
 }
 
+// Put inserts a block into the database, implementing the BlockStorer interface.
 func (m *MongoBlockStore) Put(ctx context.Context, block *proto.Block) error {
 	hash := secure.HashBlock(block)
 	res, err := m.coll.InsertOne(ctx, bson.M{
@@ -86,6 +87,7 @@ func (m *MongoBlockStore) Put(ctx context.Context, block *proto.Block) error {
 	return nil
 }
 
+// Get retrieves a block from the database, implementing the BlockStorer interface.
 func (m *MongoBlockStore) Get(ctx context.Context, blockID string) (*proto.Block, error) {
 	var blockDoc struct {
 		Hash  string       `bson:"hash"`
@@ -97,6 +99,7 @@ func (m *MongoBlockStore) Get(ctx context.Context, blockID string) (*proto.Block
 	return blockDoc.Block, nil
 }
 
+// List retrieves all blocks from the database, implementing the BlockStorer interface.
 func (m *MongoBlockStore) List(ctx context.Context) []*proto.Block {
 	blocksDocs := make([]struct {
 		Hash  string       `bson:"hash"`

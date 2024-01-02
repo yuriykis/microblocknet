@@ -92,6 +92,7 @@ func NewMongoUTXOStore(client *mongo.Client) *MongoUTXOStore {
 	}
 }
 
+// Put inserts a new UTXO into the store, implements UTXOStorer interface
 func (m *MongoUTXOStore) Put(ctx context.Context, utxo *proto.UTXO) error {
 	key := secure.MakeUTXOKey(utxo.TxHash, int(utxo.OutIndex))
 	res, err := m.coll.InsertOne(ctx, bson.M{
@@ -105,6 +106,7 @@ func (m *MongoUTXOStore) Put(ctx context.Context, utxo *proto.UTXO) error {
 	return nil
 }
 
+// Get retrieves a UTXO from the store, implements UTXOStorer interface
 func (m *MongoUTXOStore) Get(ctx context.Context, key string) (*proto.UTXO, error) {
 	var utxoDoc struct {
 		Key  string     `bson:"key"`
@@ -118,6 +120,7 @@ func (m *MongoUTXOStore) Get(ctx context.Context, key string) (*proto.UTXO, erro
 	return &utxoDoc.UTXO, nil
 }
 
+// List retrieves all UTXOs from the store, implements UTXOStorer interface
 func (m *MongoUTXOStore) List(ctx context.Context) []*proto.UTXO {
 	utxosDocs := make(
 		[]struct {
@@ -151,6 +154,7 @@ func (m *MongoUTXOStore) List(ctx context.Context) []*proto.UTXO {
 	return utxos
 }
 
+// GetByAddress retrieves all UTXOs for a given address from the store, implements UTXOStorer interface
 func (m *MongoUTXOStore) GetByAddress(ctx context.Context, address []byte) ([]*proto.UTXO, error) {
 	utxosDocs := make(
 		[]struct {
